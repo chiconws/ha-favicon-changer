@@ -1,0 +1,15 @@
+# Python cache files
+__pycache__/
+
+# IDE files
+.vscode/
+.ruff_cache/
+
+# OS specific files
+Thumbs.db
+
+# Development container files
+.devcontainer.json
+docker-compose.yml
+config
+deps/

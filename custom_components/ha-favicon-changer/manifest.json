@@ -1,0 +1,11 @@
+{
+  "domain": "ha-favicon-changer",
+  "name": "Favicon Changer",
+  "documentation": "https://github.com/chiconws/ha-favicon-changer",
+  "issue_tracker": "https://github.com/chiconws/ha-favicon-changer/issues",
+  "dependencies": ["frontend"],
+  "codeowners": ["@chiconws"],
+  "requirements": [],
+  "config_flow": true,
+  "version": "1.0.0"
+}

@@ -1,0 +1,40 @@
+{
+  "title": "Favicon Changer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Favicon Changer",
+        "description": "Set the page title and choose an icon preset.",
+        "data": {
+          "title": "Page title",
+          "icon_preset": "Icon preset"
+        }
+      }
+    },
+    "error": {
+      "invalid_preset": "Selected icon preset is not available"
+    },
+    "abort": {
+      "single_instance_allowed": "Only a single configuration of favicon is allowed.",
+      "no_presets_available": "No shipped icon presets are available."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Favicon Changer",
+        "description": "Update the page title and choose an icon preset.",
+        "data": {
+          "title": "Page title",
+          "icon_preset": "Icon preset"
+        }
+      }
+    },
+    "error": {
+      "invalid_preset": "Selected icon preset is not available"
+    },
+    "abort": {
+      "no_presets_available": "No shipped icon presets are available."
+    }
+  }
+}

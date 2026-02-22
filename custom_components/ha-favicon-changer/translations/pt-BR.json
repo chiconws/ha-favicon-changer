@@ -1,0 +1,40 @@
+{
+  "title": "Favicon Changer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Favicon Changer",
+        "description": "Defina o título da página e escolha um preset de ícone.",
+        "data": {
+          "title": "Título da página",
+          "icon_preset": "Preset de ícone"
+        }
+      }
+    },
+    "error": {
+      "invalid_preset": "O preset de ícone selecionado não está disponível"
+    },
+    "abort": {
+      "single_instance_allowed": "Apenas uma configuração de favicon é permitida.",
+      "no_presets_available": "Nenhum preset de ícone incluído está disponível."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Favicon Changer",
+        "description": "Atualize o título da página e escolha um preset de ícone.",
+        "data": {
+          "title": "Título da página",
+          "icon_preset": "Preset de ícone"
+        }
+      }
+    },
+    "error": {
+      "invalid_preset": "O preset de ícone selecionado não está disponível"
+    },
+    "abort": {
+      "no_presets_available": "Nenhum preset de ícone incluído está disponível."
+    }
+  }
+}

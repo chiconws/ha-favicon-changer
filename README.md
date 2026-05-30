@@ -9,6 +9,8 @@ This repository is a maintained fork of an older integration that was no longer 
 - Sets a custom page title for Home Assistant.
 - Replaces browser and app icons.
 - Provides built-in icon presets (auto-discovered from the integration `presets/` folder).
+- Adds a Home Assistant sidebar panel for previewing and applying presets.
+- Supports uploading one custom icon from the panel.
 - Automatically keeps only the active preset in `/config/www/favicon-presets` to avoid clutter.
 
 ## Installation
@@ -39,10 +41,20 @@ This repository is a maintained fork of an older integration that was no longer 
    - `Icon preset`
 4. Save and refresh your browser.
 
+## Favicon Panel
+
+After setup, open `Favicon Changer` from the Home Assistant sidebar.
+
+- Select a preset to preview it before applying.
+- Upload a custom icon and preview it before applying.
+- Custom uploads accept square PNG, ICO, WebP, GIF, or JPEG files up to 1 MiB.
+- PNG, WebP, GIF, and JPEG uploads must be at least 64x64 and no larger than 1024x1024.
+- ICO uploads must include a square icon at least 16x16.
+
 ## Notes
 
 - Browser favicon caching can be aggressive. If the icon does not update immediately, do a hard refresh.
-- If title/icon behavior looks stale, save options once again from the integration page.
+- If title/icon behavior looks stale, apply the current selection again from the panel.
 
 ## Troubleshooting
 

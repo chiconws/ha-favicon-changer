@@ -10,20 +10,32 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from aiohttp import web
 import homeassistant.components.frontend as frontend
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.http import HomeAssistantView
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
+    CONF_CUSTOM_ICON_PATH,
     CONF_ICON_PRESET,
     CONF_TITLE,
+    CUSTOM_ICON_PUBLIC_ROOT,
+    CUSTOM_ICON_STORAGE_ROOT,
     DEFAULT_MANIFEST_NAME,
     DEFAULT_MANIFEST_SHORT_NAME,
     DOMAIN,
     INTEGRATION_TITLE,
+    PRESET_PUBLIC_ROOT,
+    PRESET_STORAGE_ROOT,
 )
-from .presets import cleanup_preset_storage, resolve_preset_icon_path
+from .presets import (
+    cleanup_preset_storage,
+    get_preset_file_path,
+    resolve_preset_icon_path,
+)
+from .panel import async_register_favicon_panel, async_remove_favicon_panel
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,6 +43,7 @@ _RE_APPLE = re.compile(r"^favicon-apple-", re.IGNORECASE)
 _RE_ICON = re.compile(r"^favicon-(\d+x\d+)\.([a-z0-9]+)$", re.IGNORECASE)
 _ICON_MIME_BY_EXTENSION = {
     "avif": "image/avif",
+    "gif": "image/gif",
     "ico": "image/x-icon",
     "jpeg": "image/jpeg",
     "jpg": "image/jpeg",
@@ -48,6 +61,29 @@ DATA_ENTRY_CONFIG = "entry_config"
 _TEMPLATE_BASE_RENDER_ATTR = "_ha_favicon_changer_base_render"
 
 
+class PresetIconView(HomeAssistantView):
+    """Serve favicon preset assets without depending on /local."""
+
+    url = f"{PRESET_PUBLIC_ROOT}/{{preset_id}}/{{filename}}"
+    name = "api:ha-favicon-changer:presets"
+    requires_auth = False
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        self.hass = hass
+
+    async def get(self, request: web.Request, preset_id: str, filename: str) -> web.FileResponse:
+        del request
+        file_path = await self.hass.async_add_executor_job(
+            get_preset_file_path,
+            self.hass,
+            preset_id,
+            filename,
+        )
+        if file_path is None:
+            raise web.HTTPNotFound()
+        return web.FileResponse(file_path)
+
+
 def _clean_string(value: Any) -> str | None:
     if not isinstance(value, str):
         return None
@@ -60,10 +96,12 @@ def _normalize_config(config: Mapping[str, Any] | None) -> dict[str, str | None]
 
     title = _clean_string((config or {}).get(CONF_TITLE))
     icon_preset = _clean_string((config or {}).get(CONF_ICON_PRESET))
+    custom_icon_path = _clean_string((config or {}).get(CONF_CUSTOM_ICON_PATH))
 
     return {
         CONF_TITLE: title,
         CONF_ICON_PRESET: icon_preset,
+        CONF_CUSTOM_ICON_PATH: custom_icon_path,
     }
 
 
@@ -101,6 +139,7 @@ def _ensure_domain_data(hass: HomeAssistant) -> dict[str, Any]:
         DATA_YAML_CONFIG: None,
         DATA_ENTRY_CONFIG: None,
     }
+    hass.http.register_view(PresetIconView(hass))
     return hass.data[DOMAIN]
 
 
@@ -120,6 +159,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     else:
         _LOGGER.debug("No YAML config found for '%s'", DOMAIN)
 
+    await async_register_favicon_panel(hass)
     return True
 
 
@@ -139,6 +179,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         data[DATA_ENTRY_CONFIG].get(CONF_ICON_PRESET),
     )
 
+    await async_register_favicon_panel(hass)
     return await _apply_active_config(hass)
 
 
@@ -148,7 +189,10 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
     del config_entry
     data = _ensure_domain_data(hass)
     data[DATA_ENTRY_CONFIG] = None
-    return await _apply_active_config(hass)
+    result = await _apply_active_config(hass)
+    if data.get(DATA_YAML_CONFIG) is None:
+        async_remove_favicon_panel(hass)
+    return result
 
 
 async def async_remove_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
@@ -157,7 +201,10 @@ async def async_remove_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
     del config_entry
     data = _ensure_domain_data(hass)
     data[DATA_ENTRY_CONFIG] = None
-    return await _apply_active_config(hass)
+    result = await _apply_active_config(hass)
+    if data.get(DATA_YAML_CONFIG) is None:
+        async_remove_favicon_panel(hass)
+    return result
 
 
 async def _update_listener(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
@@ -181,12 +228,26 @@ def _active_config(data: Mapping[str, Any]) -> dict[str, str | None]:
     return {
         CONF_TITLE: None,
         CONF_ICON_PRESET: None,
+        CONF_CUSTOM_ICON_PATH: None,
     }
 
 
 async def _resolve_icon_path(
     hass: HomeAssistant, config: Mapping[str, str | None]
 ) -> str | None:
+    custom_icon_path = config.get(CONF_CUSTOM_ICON_PATH)
+    if custom_icon_path:
+        if custom_icon_path.startswith(CUSTOM_ICON_PUBLIC_ROOT):
+            _LOGGER.info("Using custom uploaded icon from path '%s'", custom_icon_path)
+            removed = await hass.async_add_executor_job(cleanup_preset_storage, hass)
+            if removed:
+                _LOGGER.info(
+                    "Removed %d cached preset folder(s) because a custom icon is active",
+                    removed,
+                )
+            return custom_icon_path
+        _LOGGER.warning("Ignoring unsupported custom icon path: %s", custom_icon_path)
+
     preset_id = config.get(CONF_ICON_PRESET)
     if preset_id:
         _LOGGER.debug("Resolving preset '%s' into local icon path", preset_id)
@@ -218,23 +279,48 @@ def _join_frontend_path(path: str, filename: str, version: int | None = None) ->
     return f"{url}?v={version}"
 
 
+def _safe_relative_parts(relative_path: str) -> list[str] | None:
+    parts = [part for part in Path(relative_path).parts if part not in ("", ".")]
+    if any(part == ".." for part in parts):
+        return None
+    return parts
+
+
 def _mime_type_for_icon(filename: str) -> str | None:
     extension = Path(filename).suffix.lower().lstrip(".")
     return _ICON_MIME_BY_EXTENSION.get(extension)
 
 
 def find_icons(hass: HomeAssistant, path: str | None) -> dict[str, Any]:
-    """Find favicon files in a /local directory."""
+    """Find favicon files in a managed or legacy /local directory."""
     icons: dict[str, Any] = {}
     manifest: list[dict[str, str]] = []
 
-    if not path or not path.startswith("/local"):
-        if path:
-            _LOGGER.warning("Ignoring non-/local icon path: %s", path)
+    if not path:
         return icons
 
-    local_subpath = path[len("/local") :].lstrip("/")
-    local_dir = Path(hass.config.path("www", local_subpath))
+    if path.startswith(PRESET_PUBLIC_ROOT):
+        relative_path = path[len(PRESET_PUBLIC_ROOT) :].lstrip("/")
+        relative_parts = _safe_relative_parts(relative_path)
+        if relative_parts is None:
+            _LOGGER.warning("Ignoring unsafe preset icon path: %s", path)
+            return icons
+        local_dir = Path(hass.config.path(*PRESET_STORAGE_ROOT, *relative_parts))
+    elif path.startswith(CUSTOM_ICON_PUBLIC_ROOT):
+        relative_path = path[len(CUSTOM_ICON_PUBLIC_ROOT) :].lstrip("/")
+        relative_parts = _safe_relative_parts(relative_path)
+        if relative_parts is None:
+            _LOGGER.warning("Ignoring unsafe custom icon path: %s", path)
+            return icons
+        local_dir = Path(hass.config.path(*CUSTOM_ICON_STORAGE_ROOT, *relative_parts))
+    elif path.startswith("/local"):
+        local_subpath = path[len("/local") :].lstrip("/")
+        local_dir = Path(hass.config.path("www", local_subpath))
+    else:
+        if path:
+            _LOGGER.warning("Ignoring unsupported icon path: %s", path)
+        return icons
+
     _LOGGER.info("Looking for icons in: %s", local_dir)
 
     try:
@@ -285,11 +371,11 @@ def find_icons(hass: HomeAssistant, path: str | None) -> dict[str, Any]:
 
     if "favicon" not in icons and manifest:
         icons["favicon"] = manifest[0]["src"]
-        _LOGGER.info("No favicon.ico found; using png fallback: %s", icons["favicon"])
+        _LOGGER.info("No favicon.ico found; using icon fallback: %s", icons["favicon"])
 
     if not icons:
         _LOGGER.warning(
-            "No supported icon files found in %s. Expected favicon.ico, favicon-apple-*.png, favicon-<size>x<size>.png",
+            "No supported icon files found in %s. Expected favicon.ico, favicon-apple-*.png, or favicon-<size>x<size>.<ext>",
             local_dir,
         )
     else:

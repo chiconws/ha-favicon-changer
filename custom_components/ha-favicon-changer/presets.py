@@ -38,6 +38,10 @@ class PresetInfo(TypedDict):
     name: str
 
 
+def _preset_storage_root(hass: HomeAssistant) -> Path:
+    return Path(hass.config.path(*PRESET_STORAGE_ROOT))
+
+
 def _is_managed_preset_dir(directory: Path, known_preset_ids: set[str]) -> bool:
     return directory.name in known_preset_ids or any(
         (directory / marker).exists() for marker in _MANAGED_MARKER_FILES
@@ -118,14 +122,33 @@ def get_preset_ids(catalog: tuple[PresetInfo, ...] | None = None) -> set[str]:
     return {preset["id"] for preset in catalog}
 
 
+def get_preset_file_path(
+    hass: HomeAssistant, preset_id: str, filename: str
+) -> Path | None:
+    """Return the on-disk file path for a preset asset."""
+    if Path(preset_id).name != preset_id or Path(filename).name != filename:
+        return None
+
+    preset_dir = _preset_storage_root(hass) / preset_id
+    file_path = preset_dir / filename
+    if file_path.is_file():
+        return file_path
+
+    source_path = _PRESETS_PATH / preset_id / filename
+    if source_path.is_file() and preset_id in get_preset_ids():
+        return source_path
+
+    return None
+
+
 def resolve_preset_icon_path(hass: HomeAssistant, preset_id: str) -> str | None:
-    """Copy a preset into /www and return its /local path."""
+    """Copy a preset into storage and return its public path."""
     source_dir = _PRESETS_PATH / preset_id
     if not source_dir.is_dir():
         _LOGGER.warning("Preset directory does not exist: %s", source_dir)
         return None
 
-    destination_root = Path(hass.config.path(*PRESET_STORAGE_ROOT))
+    destination_root = _preset_storage_root(hass)
     try:
         destination_root.mkdir(parents=True, exist_ok=True)
     except OSError:
@@ -188,8 +211,8 @@ def resolve_preset_icon_path(hass: HomeAssistant, preset_id: str) -> str | None:
 
 
 def cleanup_preset_storage(hass: HomeAssistant) -> int:
-    """Remove all cached preset folders from /www/favicon-presets."""
-    destination_root = Path(hass.config.path(*PRESET_STORAGE_ROOT))
+    """Remove all cached preset folders from preset storage."""
+    destination_root = _preset_storage_root(hass)
     known_preset_ids = get_preset_ids()
     removed = _prune_preset_storage(destination_root, known_preset_ids=known_preset_ids)
     if removed:

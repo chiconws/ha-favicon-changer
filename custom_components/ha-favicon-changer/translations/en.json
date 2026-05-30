@@ -12,7 +12,8 @@
       }
     },
     "error": {
-      "invalid_preset": "Selected icon preset is not available"
+      "invalid_preset": "Selected icon preset is not available",
+      "title_too_long": "Page title is too long"
     },
     "abort": {
       "single_instance_allowed": "Only a single configuration of favicon is allowed.",
@@ -23,7 +24,7 @@
     "step": {
       "init": {
         "title": "Favicon Changer",
-        "description": "Update the page title and choose an icon preset.",
+        "description": "Update the page title and choose an icon preset. If a custom upload is active, choose Custom upload to keep it.",
         "data": {
           "title": "Page title",
           "icon_preset": "Icon preset"
@@ -31,7 +32,8 @@
       }
     },
     "error": {
-      "invalid_preset": "Selected icon preset is not available"
+      "invalid_preset": "Selected icon preset is not available",
+      "title_too_long": "Page title is too long"
     },
     "abort": {
       "no_presets_available": "No shipped icon presets are available."

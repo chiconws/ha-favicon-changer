@@ -12,7 +12,8 @@
       }
     },
     "error": {
-      "invalid_preset": "O preset de ícone selecionado não está disponível"
+      "invalid_preset": "O preset de ícone selecionado não está disponível",
+      "title_too_long": "O título da página é muito longo"
     },
     "abort": {
       "single_instance_allowed": "Apenas uma configuração de favicon é permitida.",
@@ -23,7 +24,7 @@
     "step": {
       "init": {
         "title": "Favicon Changer",
-        "description": "Atualize o título da página e escolha um preset de ícone.",
+        "description": "Atualize o título da página e escolha um preset de ícone. Se um upload customizado estiver ativo, escolha Custom upload para mantê-lo.",
         "data": {
           "title": "Título da página",
           "icon_preset": "Preset de ícone"
@@ -31,7 +32,8 @@
       }
     },
     "error": {
-      "invalid_preset": "O preset de ícone selecionado não está disponível"
+      "invalid_preset": "O preset de ícone selecionado não está disponível",
+      "title_too_long": "O título da página é muito longo"
     },
     "abort": {
       "no_presets_available": "Nenhum preset de ícone incluído está disponível."

@@ -18,10 +18,19 @@ from homeassistant.helpers.selector import (
     SelectSelectorMode,
 )
 
-from .const import CONF_ICON_PRESET, CONF_TITLE, DOMAIN, INTEGRATION_TITLE
+from .const import (
+    CONF_CUSTOM_ICON_PATH,
+    CONF_ICON_PRESET,
+    CONF_TITLE,
+    DOMAIN,
+    INTEGRATION_TITLE,
+    MAX_TITLE_LENGTH,
+)
 from .presets import PresetInfo, get_preset_ids, load_preset_catalog
 
 _LOGGER = logging.getLogger(__name__)
+
+_CUSTOM_UPLOAD_OPTION = "__custom_upload__"
 
 
 def _clean_string(value: Any) -> str | None:
@@ -37,13 +46,24 @@ async def _async_load_preset_catalog(hass: HomeAssistant) -> tuple[PresetInfo, .
     return catalog
 
 
-def _preset_selector(catalog: tuple[PresetInfo, ...]) -> SelectSelector:
-    options: list[SelectOptionDict] = [
+def _preset_selector(
+    catalog: tuple[PresetInfo, ...], *, include_custom_upload: bool
+) -> SelectSelector:
+    options: list[SelectOptionDict] = []
+    if include_custom_upload:
+        options.append(
+            SelectOptionDict(
+                value=_CUSTOM_UPLOAD_OPTION,
+                label="Custom upload (keep current)",
+            )
+        )
+
+    options.extend(
         SelectOptionDict(value=preset["id"], label=preset["name"])
         for preset in catalog
-    ]
+    )
 
-    _LOGGER.debug("Building preset selector with %d shipped presets", len(options))
+    _LOGGER.debug("Building preset selector with %d shipped presets", len(catalog))
     return SelectSelector(
         SelectSelectorConfig(options=options, mode=SelectSelectorMode.DROPDOWN)
     )
@@ -66,48 +86,65 @@ def _build_main_schema(
     if CONF_TITLE in current_values:
         suggested_values[CONF_TITLE] = current_values[CONF_TITLE]
 
+    custom_icon_path = _clean_string(current_values.get(CONF_CUSTOM_ICON_PATH))
     icon_preset = _clean_string(current_values.get(CONF_ICON_PRESET))
-    if not icon_preset and catalog:
+    if custom_icon_path:
+        icon_preset = _CUSTOM_UPLOAD_OPTION
+    elif not icon_preset and catalog:
         icon_preset = catalog[0]["id"]
     if icon_preset:
         suggested_values[CONF_ICON_PRESET] = icon_preset
 
     schema = vol.Schema(
         {
-            vol.Optional(CONF_TITLE): str,
-            vol.Required(CONF_ICON_PRESET): _preset_selector(catalog),
+            vol.Optional(CONF_TITLE): vol.All(str, vol.Length(max=MAX_TITLE_LENGTH)),
+            vol.Required(CONF_ICON_PRESET): _preset_selector(
+                catalog, include_custom_upload=bool(custom_icon_path)
+            ),
         }
     )
     return flow.add_suggested_values_to_schema(schema, suggested_values)
 
 
 def _validate_main_step(
-    user_input: Mapping[str, Any], valid_preset_ids: set[str]
-) -> tuple[str, str, dict[str, str]]:
+    user_input: Mapping[str, Any],
+    valid_preset_ids: set[str],
+    *,
+    current_custom_icon_path: str | None = None,
+) -> tuple[str, str, str | None, dict[str, str]]:
     errors: dict[str, str] = {}
 
     title = _clean_string(user_input.get(CONF_TITLE)) or ""
+    if len(title) > MAX_TITLE_LENGTH:
+        errors[CONF_TITLE] = "title_too_long"
+
     icon_preset = _clean_string(user_input.get(CONF_ICON_PRESET)) or ""
+    if icon_preset == _CUSTOM_UPLOAD_OPTION and current_custom_icon_path:
+        return title, "", current_custom_icon_path, errors
 
     if icon_preset not in valid_preset_ids:
         _LOGGER.warning("User selected invalid icon preset: %s", icon_preset)
         errors[CONF_ICON_PRESET] = "invalid_preset"
 
-    return title, icon_preset, errors
+    return title, icon_preset, None, errors
 
 
-def _build_entry_data(title: str, icon_preset: str) -> dict[str, str]:
+def _build_entry_data(
+    title: str, icon_preset: str, custom_icon_path: str | None
+) -> dict[str, str]:
     output: dict[str, str] = {CONF_TITLE: title}
     output[CONF_ICON_PRESET] = icon_preset
+    output[CONF_CUSTOM_ICON_PATH] = custom_icon_path or ""
     return output
 
 
 def _log_saved_config(action: str, data: Mapping[str, Any]) -> None:
     _LOGGER.info(
-        "%s (title_set=%s, preset=%s)",
+        "%s (title_set=%s, preset=%s, custom_icon=%s)",
         action,
         bool(_clean_string(data.get(CONF_TITLE))),
         _clean_string(data.get(CONF_ICON_PRESET)),
+        bool(_clean_string(data.get(CONF_CUSTOM_ICON_PATH))),
     )
 
 
@@ -132,9 +169,11 @@ class FaviconConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         errors: dict[str, str] = {}
         if user_input is not None:
-            title, icon_preset, errors = _validate_main_step(user_input, valid_preset_ids)
+            title, icon_preset, custom_icon_path, errors = _validate_main_step(
+                user_input, valid_preset_ids
+            )
             if not errors:
-                data = _build_entry_data(title, icon_preset)
+                data = _build_entry_data(title, icon_preset, custom_icon_path)
                 _log_saved_config("Creating config entry", data)
                 await self.async_set_unique_id(DOMAIN)
                 self._abort_if_unique_id_configured()
@@ -170,18 +209,25 @@ class FaviconOptionsFlow(config_entries.OptionsFlow):
             return self.async_abort(reason="no_presets_available")
 
         errors: dict[str, str] = {}
+        stored_values = _current_values(self.config_entry)
+        current_custom_icon_path = _clean_string(stored_values.get(CONF_CUSTOM_ICON_PATH))
 
         if user_input is not None:
-            title, icon_preset, errors = _validate_main_step(user_input, valid_preset_ids)
+            title, icon_preset, custom_icon_path, errors = _validate_main_step(
+                user_input,
+                valid_preset_ids,
+                current_custom_icon_path=current_custom_icon_path,
+            )
             if not errors:
-                data = _build_entry_data(title, icon_preset)
+                data = _build_entry_data(title, icon_preset, custom_icon_path)
                 _log_saved_config("Saving options", data)
                 return self.async_create_entry(title="", data=data)
 
             _LOGGER.warning("Options flow validation failed with errors: %s", errors)
-            current_values: Mapping[str, Any] = user_input
+            current_values = dict(stored_values)
+            current_values.update(user_input)
         else:
-            current_values = _current_values(self.config_entry)
+            current_values = stored_values
 
         return self.async_show_form(
             step_id="init",

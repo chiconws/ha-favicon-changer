@@ -6,6 +6,8 @@
   "dependencies": ["frontend", "panel_custom"],
   "codeowners": ["@chiconws"],
   "requirements": [],
+  "iot_class": "calculated",
   "config_flow": true,
-  "version": "2.0.0"
+  "single_config_entry": true,
+  "version": "2.0.1"
 }

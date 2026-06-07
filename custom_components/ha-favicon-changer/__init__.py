@@ -14,8 +14,10 @@ from aiohttp import web
 import homeassistant.components.frontend as frontend
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.http import HomeAssistantView
 from homeassistant.helpers.typing import ConfigType
+import voluptuous as vol
 
 from .const import (
     CONF_CUSTOM_ICON_PATH,
@@ -27,6 +29,7 @@ from .const import (
     DEFAULT_MANIFEST_SHORT_NAME,
     DOMAIN,
     INTEGRATION_TITLE,
+    MAX_TITLE_LENGTH,
     PRESET_PUBLIC_ROOT,
     PRESET_STORAGE_ROOT,
 )
@@ -38,6 +41,21 @@ from .presets import (
 from .panel import async_register_favicon_panel, async_remove_favicon_panel
 
 _LOGGER = logging.getLogger(__name__)
+
+CONFIG_SCHEMA = vol.Schema(
+    {
+        DOMAIN: vol.Schema(
+            {
+                vol.Optional(CONF_TITLE): vol.All(
+                    cv.string, vol.Length(max=MAX_TITLE_LENGTH)
+                ),
+                vol.Optional(CONF_ICON_PRESET): cv.string,
+                vol.Optional(CONF_CUSTOM_ICON_PATH): cv.string,
+            }
+        )
+    },
+    extra=vol.ALLOW_EXTRA,
+)
 
 _RE_APPLE = re.compile(r"^favicon-apple-", re.IGNORECASE)
 _RE_ICON = re.compile(r"^favicon-(\d+x\d+)\.([a-z0-9]+)$", re.IGNORECASE)

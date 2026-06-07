@@ -5,8 +5,8 @@
   "config_flow": true,
   "dependencies": ["frontend", "panel_custom"],
   "documentation": "https://github.com/chiconws/ha-favicon-changer",
-  "issue_tracker": "https://github.com/chiconws/ha-favicon-changer/issues",
   "iot_class": "calculated",
+  "issue_tracker": "https://github.com/chiconws/ha-favicon-changer/issues",
   "requirements": [],
   "single_config_entry": true,
   "version": "2.0.1"

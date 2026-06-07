@@ -1,5 +1,11 @@
 # Home Assistant Favicon Changer
 
+[![HACS][badge-hacs]][link-hacs]
+[![GitHub Release][badge-release]][link-release]
+[![GitHub Commit Activity][badge-commit-activity]][link-commits]
+[![HACS Validation][badge-hacs-validation]][link-hacs-validation]
+[![Hassfest][badge-hassfest]][link-hassfest]
+
 Custom Home Assistant integration to change the browser title, favicon, and web app icons.
 
 This repository is a maintained fork of an older integration that was no longer updated.
@@ -78,3 +84,15 @@ MIT (see `LICENSE`).
 
 Original integration created by **Thomas Lovén**:
 <https://github.com/thomasloven/hass-favicon>
+
+[badge-hacs]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg
+[badge-release]: https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fchiconws%2Fha-favicon-changer%2Freleases%2Flatest&query=%24.tag_name&label=release
+[badge-commit-activity]: https://img.shields.io/github/commit-activity/m/chiconws/ha-favicon-changer
+[badge-hacs-validation]: https://github.com/chiconws/ha-favicon-changer/actions/workflows/hacs.yaml/badge.svg
+[badge-hassfest]: https://github.com/chiconws/ha-favicon-changer/actions/workflows/hassfest.yaml/badge.svg
+
+[link-hacs]: https://hacs.xyz/
+[link-release]: https://github.com/chiconws/ha-favicon-changer/releases/latest
+[link-commits]: https://github.com/chiconws/ha-favicon-changer/commits/main
+[link-hacs-validation]: https://github.com/chiconws/ha-favicon-changer/actions/workflows/hacs.yaml
+[link-hassfest]: https://github.com/chiconws/ha-favicon-changer/actions/workflows/hassfest.yaml

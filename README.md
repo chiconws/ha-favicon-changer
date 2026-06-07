@@ -1,13 +1,13 @@
 # Home Assistant Favicon Changer
 
-Custom Home Assistant integration to change the browser title, favicon, and app icons.
+Custom Home Assistant integration to change the browser title, favicon, and web app icons.
 
 This repository is a maintained fork of an older integration that was no longer updated.
 
 ## What It Does
 
 - Sets a custom page title for Home Assistant.
-- Replaces browser and app icons.
+- Replaces browser and web app icons.
 - Provides built-in icon presets (auto-discovered from the integration `presets/` folder).
 - Adds a Home Assistant sidebar panel for previewing and applying presets.
 - Supports uploading one custom icon from the panel.
@@ -44,6 +44,8 @@ This repository is a maintained fork of an older integration that was no longer 
 ## Favicon Panel
 
 After setup, open `Favicon Changer` from the Home Assistant sidebar.
+
+![Favicon Changer panel](docs/favicon-panel.png)
 
 - Select a preset to preview it before applying.
 - Upload a custom icon and preview it before applying.

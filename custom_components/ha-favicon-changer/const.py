@@ -1,4 +1,10 @@
-"""Constants for the favicon integration."""
+"""Constants and shared helpers for the favicon integration."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from homeassistant.config_entries import ConfigEntry
 
 DOMAIN = "ha-favicon-changer"
 INTEGRATION_TITLE = "Favicon Changer"
@@ -18,3 +24,17 @@ MAX_TITLE_LENGTH = 120
 
 DEFAULT_MANIFEST_NAME = "Home Assistant"
 DEFAULT_MANIFEST_SHORT_NAME = "Assistant"
+
+
+def clean_string(value: Any) -> str | None:
+    """Return a stripped string, or None for blanks and non-strings."""
+    if not isinstance(value, str):
+        return None
+    return value.strip() or None
+
+
+def entry_values(config_entry: ConfigEntry | None) -> dict[str, Any]:
+    """Return config entry data merged with its options."""
+    if config_entry is None:
+        return {}
+    return {**config_entry.data, **config_entry.options}

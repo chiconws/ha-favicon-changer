@@ -252,10 +252,9 @@ class FaviconPanelUploadView(HomeAssistantView):
         if request.content_length and request.content_length > MAX_UPLOAD_BYTES + 4096:
             return _json_error("Icon is larger than 1 MiB.", status=413)
 
-        try:
-            reader = await request.multipart()
-        except ValueError:
+        if not request.content_type.startswith("multipart/"):
             return _json_error("Upload must use multipart form data.")
+        reader = await request.multipart()
 
         filename: str | None = None
         content_type: str | None = None

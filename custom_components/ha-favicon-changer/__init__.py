@@ -474,7 +474,7 @@ async def _apply_active_config(hass: HomeAssistant) -> bool:
                 )
             if title:
                 escaped_title = html.escape(title)
-                script_title = json.dumps(title).replace("</", "<\\/")
+                script_title = json.dumps(title).replace("<", "\\u003c")
 
                 text = text.replace(
                     "<title>Home Assistant</title>",

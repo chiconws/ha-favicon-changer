@@ -219,31 +219,34 @@ class FaviconPanelUploadView(HomeAssistantView):
 
         if not request.content_type.startswith("multipart/"):
             return _json_error("Upload must use multipart form data.")
-        reader = await request.multipart()
 
         filename: str | None = None
         content_type: str | None = None
         content = b""
         title_from_form: str | None = None
 
-        while field := await reader.next():
-            if not isinstance(field, BodyPartReader):
-                continue
-            if field.name == CONF_TITLE:
-                title_from_form = await field.text()
-                continue
-            if field.name != "file":
-                continue
-            filename = field.filename
-            content_type = field.headers.get("Content-Type")
-            chunks: list[bytes] = []
-            total = 0
-            while chunk := await field.read_chunk():
-                total += len(chunk)
-                if total > MAX_UPLOAD_BYTES:
-                    return _json_error("Icon is larger than 1 MiB.", status=413)
-                chunks.append(chunk)
-            content = b"".join(chunks)
+        try:
+            reader = await request.multipart()
+            while field := await reader.next():
+                if not isinstance(field, BodyPartReader):
+                    continue
+                if field.name == CONF_TITLE:
+                    title_from_form = await field.text()
+                    continue
+                if field.name != "file":
+                    continue
+                filename = field.filename
+                content_type = field.headers.get("Content-Type")
+                chunks: list[bytes] = []
+                total = 0
+                while chunk := await field.read_chunk():
+                    total += len(chunk)
+                    if total > MAX_UPLOAD_BYTES:
+                        return _json_error("Icon is larger than 1 MiB.", status=413)
+                    chunks.append(chunk)
+                content = b"".join(chunks)
+        except ValueError:
+            return _json_error("Upload must use multipart form data.")
 
         if not content:
             return _json_error("Choose a PNG, ICO, WebP, GIF, or JPEG file to upload.")

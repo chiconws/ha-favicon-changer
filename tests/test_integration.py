@@ -156,8 +156,15 @@ async def test_upload_rejects_bad_files(hass: HomeAssistant, entry, hass_client)
         assert response.status == status, message
         assert (await response.json())["error"] == message
 
-    response = await client.post(UPLOAD_URL, json={})
-    assert (await response.json())["error"] == "Upload must use multipart form data."
+    bad_bodies = [
+        (b"{}", {"Content-Type": "application/json"}),
+        (b"{}", {"Content-Type": "multipart/form-data"}),
+        (b"--other\r\n\r\n--other--\r\n", {"Content-Type": "multipart/form-data; boundary=x"}),
+    ]
+    for body, headers in bad_bodies:
+        response = await client.post(UPLOAD_URL, data=body, headers=headers)
+        assert response.status == 400
+        assert (await response.json())["error"] == "Upload must use multipart form data."
 
 
 async def test_panel_writes_need_a_config_entry(hass: HomeAssistant, entry, hass_client):

@@ -8,7 +8,6 @@ from typing import Any
 
 from aiohttp import web
 from aiohttp.multipart import BodyPartReader
-
 from homeassistant.components import frontend, panel_custom
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -25,15 +24,19 @@ from .const import (
     MAX_TITLE_LENGTH,
     MAX_UPLOAD_BYTES,
     PRESET_PUBLIC_ROOT,
+    clean_string,
+    entry_values,
 )
 from .custom_icons import (
+    SUPPORTED_CONTENT_TYPES,
+    SUPPORTED_EXTENSIONS,
     CustomIconError,
     get_custom_icon_file_path,
     get_custom_icon_preview_url,
     get_custom_icon_public_path,
     save_custom_icon,
 )
-from .presets import load_preset_catalog
+from .presets import get_preset_file_path, load_preset_catalog
 
 PANEL_COMPONENT_NAME = "ha-favicon-changer-panel"
 PANEL_FRONTEND_URL_PATH = "ha-favicon-changer"
@@ -41,12 +44,6 @@ PANEL_MODULE_URL = "/api/ha-favicon-changer/panel.js"
 PANEL_MODULE_PATH = Path(__file__).resolve().parent / "frontend" / "favicon-changer-panel.js"
 DATA_PANEL_REGISTERED = "panel_registered"
 DATA_PANEL_VIEWS_REGISTERED = "panel_views_registered"
-
-
-def _clean_string(value: Any) -> str | None:
-    if not isinstance(value, str):
-        return None
-    return value.strip() or None
 
 
 def _require_admin(request: web.Request) -> None:
@@ -66,14 +63,6 @@ def _config_entry(hass: HomeAssistant) -> ConfigEntry | None:
     return entries[0]
 
 
-def _entry_values(config_entry: ConfigEntry | None) -> dict[str, Any]:
-    if config_entry is None:
-        return {}
-    values = dict(config_entry.data)
-    values.update(config_entry.options)
-    return values
-
-
 def _validate_title(value: Any) -> str:
     if value is None:
         return ""
@@ -85,20 +74,16 @@ def _validate_title(value: Any) -> str:
     return title
 
 
-async def _async_custom_preview_url(hass: HomeAssistant) -> str | None:
-    return await hass.async_add_executor_job(get_custom_icon_preview_url, hass)
-
-
 async def async_panel_payload(hass: HomeAssistant) -> dict[str, Any]:
     """Return data used by the frontend panel."""
     config_entry = _config_entry(hass)
-    values = _entry_values(config_entry)
-    title = _clean_string(values.get(CONF_TITLE)) or ""
-    icon_preset = _clean_string(values.get(CONF_ICON_PRESET)) or ""
-    custom_icon_path = _clean_string(values.get(CONF_CUSTOM_ICON_PATH))
+    values = entry_values(config_entry)
+    title = clean_string(values.get(CONF_TITLE)) or ""
+    icon_preset = clean_string(values.get(CONF_ICON_PRESET)) or ""
+    custom_icon_path = clean_string(values.get(CONF_CUSTOM_ICON_PATH))
 
     catalog = await hass.async_add_executor_job(load_preset_catalog)
-    custom_preview_url = await _async_custom_preview_url(hass)
+    custom_preview_url = await hass.async_add_executor_job(get_custom_icon_preview_url, hass)
     custom_active = bool(custom_icon_path and custom_preview_url)
 
     return {
@@ -109,28 +94,8 @@ async def async_panel_payload(hass: HomeAssistant) -> dict[str, Any]:
         "custom_icon_url": custom_preview_url,
         "limits": {
             "max_bytes": MAX_UPLOAD_BYTES,
-            "accepted_types": [
-                "image/gif",
-                "image/jpeg",
-                "image/png",
-                "image/x-icon",
-                "image/vnd.microsoft.icon",
-                "image/webp",
-            ],
-            "accepted_extensions": [
-                ".png",
-                ".ico",
-                ".webp",
-                ".gif",
-                ".jpg",
-                ".jpeg",
-            ],
-            "png_min_size": 64,
-            "ico_min_size": 16,
-            "webp_min_size": 64,
-            "gif_min_size": 64,
-            "jpeg_min_size": 64,
-            "max_size": 1024,
+            "accepted_types": list(SUPPORTED_CONTENT_TYPES),
+            "accepted_extensions": list(SUPPORTED_EXTENSIONS),
         },
         "presets": [
             {
@@ -203,9 +168,9 @@ class FaviconPanelConfigView(HomeAssistantView):
         except ValueError as err:
             return _json_error(str(err))
 
-        source = _clean_string(body.get("source")) or "preset"
+        source = clean_string(body.get("source")) or "preset"
         if source == "custom":
-            if await _async_custom_preview_url(hass) is None:
+            if await hass.async_add_executor_job(get_custom_icon_preview_url, hass) is None:
                 return _json_error("Upload a custom icon before selecting it.")
             await _async_update_entry_options(
                 hass,
@@ -219,7 +184,7 @@ class FaviconPanelConfigView(HomeAssistantView):
         if source != "preset":
             return _json_error("Unknown icon source.")
 
-        icon_preset = _clean_string(body.get(CONF_ICON_PRESET)) or ""
+        icon_preset = clean_string(body.get(CONF_ICON_PRESET)) or ""
         catalog = await hass.async_add_executor_job(load_preset_catalog)
         valid_preset_ids = {preset["id"] for preset in catalog}
         if icon_preset not in valid_preset_ids:
@@ -252,9 +217,7 @@ class FaviconPanelUploadView(HomeAssistantView):
         if request.content_length and request.content_length > MAX_UPLOAD_BYTES + 4096:
             return _json_error("Icon is larger than 1 MiB.", status=413)
 
-        try:
-            reader = await request.multipart()
-        except ValueError:
+        if not request.content_type.startswith("multipart/"):
             return _json_error("Upload must use multipart form data.")
 
         filename: str | None = None
@@ -262,24 +225,28 @@ class FaviconPanelUploadView(HomeAssistantView):
         content = b""
         title_from_form: str | None = None
 
-        while field := await reader.next():
-            if not isinstance(field, BodyPartReader):
-                continue
-            if field.name == CONF_TITLE:
-                title_from_form = await field.text()
-                continue
-            if field.name != "file":
-                continue
-            filename = field.filename
-            content_type = field.headers.get("Content-Type")
-            chunks: list[bytes] = []
-            total = 0
-            while chunk := await field.read_chunk():
-                total += len(chunk)
-                if total > MAX_UPLOAD_BYTES:
-                    return _json_error("Icon is larger than 1 MiB.", status=413)
-                chunks.append(chunk)
-            content = b"".join(chunks)
+        try:
+            reader = await request.multipart()
+            while field := await reader.next():
+                if not isinstance(field, BodyPartReader):
+                    continue
+                if field.name == CONF_TITLE:
+                    title_from_form = await field.text()
+                    continue
+                if field.name != "file":
+                    continue
+                filename = field.filename
+                content_type = field.headers.get("Content-Type")
+                chunks: list[bytes] = []
+                total = 0
+                while chunk := await field.read_chunk():
+                    total += len(chunk)
+                    if total > MAX_UPLOAD_BYTES:
+                        return _json_error("Icon is larger than 1 MiB.", status=413)
+                    chunks.append(chunk)
+                content = b"".join(chunks)
+        except ValueError:
+            return _json_error("Upload must use multipart form data.")
 
         if not content:
             return _json_error("Choose a PNG, ICO, WebP, GIF, or JPEG file to upload.")
@@ -288,7 +255,7 @@ class FaviconPanelUploadView(HomeAssistantView):
             title = _validate_title(
                 title_from_form
                 if title_from_form is not None
-                else _entry_values(config_entry).get(CONF_TITLE)
+                else entry_values(config_entry).get(CONF_TITLE)
             )
             custom_path = await hass.async_add_executor_job(
                 save_custom_icon,
@@ -333,6 +300,26 @@ class CustomIconView(HomeAssistantView):
         return web.FileResponse(file_path)
 
 
+class PresetIconView(HomeAssistantView):
+    """Serve shipped favicon preset assets."""
+
+    url = f"{PRESET_PUBLIC_ROOT}/{{preset_id}}/{{filename}}"
+    name = "api:ha-favicon-changer:presets"
+    requires_auth = False
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        self.hass = hass
+
+    async def get(self, request: web.Request, preset_id: str, filename: str) -> web.FileResponse:
+        del request
+        file_path = await self.hass.async_add_executor_job(
+            get_preset_file_path, preset_id, filename
+        )
+        if file_path is None:
+            raise web.HTTPNotFound()
+        return web.FileResponse(file_path)
+
+
 def _register_panel_views(hass: HomeAssistant) -> None:
     data = hass.data.setdefault(DOMAIN, {})
     if data.get(DATA_PANEL_VIEWS_REGISTERED):
@@ -342,6 +329,7 @@ def _register_panel_views(hass: HomeAssistant) -> None:
     hass.http.register_view(FaviconPanelConfigView())
     hass.http.register_view(FaviconPanelUploadView())
     hass.http.register_view(CustomIconView(hass))
+    hass.http.register_view(PresetIconView(hass))
     data[DATA_PANEL_VIEWS_REGISTERED] = True
 
 

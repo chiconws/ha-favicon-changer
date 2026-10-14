@@ -153,22 +153,8 @@ class HaFaviconChangerPanel extends HTMLElement {
       return;
     }
 
-    const maxBytes = this._data?.limits?.max_bytes || 1048576;
-    const acceptedTypes = this._data?.limits?.accepted_types || [
-      "image/gif",
-      "image/jpeg",
-      "image/png",
-      "image/x-icon",
-      "image/webp",
-    ];
-    const acceptedExtensions = this._data?.limits?.accepted_extensions || [
-      ".gif",
-      ".jpeg",
-      ".jpg",
-      ".png",
-      ".ico",
-      ".webp",
-    ];
+    const { max_bytes: maxBytes, accepted_types: acceptedTypes, accepted_extensions: acceptedExtensions } =
+      this._data.limits;
     const filename = file.name.toLowerCase();
     const extensionOk = acceptedExtensions.some((extension) => filename.endsWith(extension));
     const typeOk = !file.type || acceptedTypes.includes(file.type);
@@ -290,9 +276,8 @@ class HaFaviconChangerPanel extends HTMLElement {
     const canApplyPreset =
       this._data.writable && this._selectedSource !== "upload" && !this._saving;
     const canUpload = this._data.writable && this._uploadFile && !this._saving;
-    const uploadAccept =
-      ".png,.ico,.webp,.gif,.jpg,.jpeg,image/png,image/x-icon," +
-      "image/vnd.microsoft.icon,image/webp,image/gif,image/jpeg";
+    const { accepted_extensions: extensions, accepted_types: types } = this._data.limits;
+    const uploadAccept = [...extensions, ...types].join(",");
 
     this.shadowRoot.innerHTML = `
       <style>${this._styles()}</style>

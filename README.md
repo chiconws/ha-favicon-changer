@@ -17,7 +17,6 @@ This repository is a maintained fork of an older integration that was no longer 
 - Provides built-in icon presets (auto-discovered from the integration `presets/` folder).
 - Adds a Home Assistant sidebar panel for previewing and applying presets.
 - Supports uploading one custom icon from the panel.
-- Automatically keeps only the active preset in `/config/www/favicon-presets` to avoid clutter.
 
 ## Installation
 

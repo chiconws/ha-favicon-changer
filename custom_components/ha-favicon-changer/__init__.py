@@ -5,339 +5,94 @@ from __future__ import annotations
 import html
 import json
 import logging
+import mimetypes
 import re
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from aiohttp import web
 import homeassistant.components.frontend as frontend
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.http import HomeAssistantView
-from homeassistant.helpers.typing import ConfigType
-import voluptuous as vol
 
 from .const import (
     CONF_CUSTOM_ICON_PATH,
     CONF_ICON_PRESET,
     CONF_TITLE,
-    CUSTOM_ICON_PUBLIC_ROOT,
-    CUSTOM_ICON_STORAGE_ROOT,
-    DEFAULT_MANIFEST_NAME,
-    DEFAULT_MANIFEST_SHORT_NAME,
     DOMAIN,
     INTEGRATION_TITLE,
-    MAX_TITLE_LENGTH,
     PRESET_PUBLIC_ROOT,
-    PRESET_STORAGE_ROOT,
+    clean_string,
+    entry_values,
 )
-from .presets import (
-    cleanup_preset_storage,
-    get_preset_file_path,
-    resolve_preset_icon_path,
-)
+from .custom_icons import custom_icon_dir, get_custom_icon_public_path
 from .panel import async_register_favicon_panel, async_remove_favicon_panel
+from .presets import PRESETS_PATH
 
 _LOGGER = logging.getLogger(__name__)
 
-CONFIG_SCHEMA = vol.Schema(
-    {
-        DOMAIN: vol.Schema(
-            {
-                vol.Optional(CONF_TITLE): vol.All(
-                    cv.string, vol.Length(max=MAX_TITLE_LENGTH)
-                ),
-                vol.Optional(CONF_ICON_PRESET): cv.string,
-                vol.Optional(CONF_CUSTOM_ICON_PATH): cv.string,
-            }
-        )
-    },
-    extra=vol.ALLOW_EXTRA,
-)
-
 _RE_APPLE = re.compile(r"^favicon-apple-", re.IGNORECASE)
 _RE_ICON = re.compile(r"^favicon-(\d+x\d+)\.([a-z0-9]+)$", re.IGNORECASE)
-_ICON_MIME_BY_EXTENSION = {
-    "avif": "image/avif",
-    "gif": "image/gif",
-    "ico": "image/x-icon",
-    "jpeg": "image/jpeg",
-    "jpg": "image/jpeg",
-    "png": "image/png",
-    "svg": "image/svg+xml",
-    "webp": "image/webp",
-}
+# Python < 3.13 only knows .webp when the OS ships a mime.types file.
+mimetypes.add_type("image/webp", ".webp")
 
 DATA_GET_TEMPLATE = "get_template"
-DATA_MANIFEST_ICONS = "manifest_icons"
-DATA_MANIFEST_NAME = "manifest_name"
-DATA_MANIFEST_SHORT_NAME = "manifest_short_name"
-DATA_YAML_CONFIG = "yaml_config"
-DATA_ENTRY_CONFIG = "entry_config"
+DATA_MANIFEST = "manifest"
+_MANIFEST_KEYS = ("icons", "name", "short_name")
 _TEMPLATE_BASE_RENDER_ATTR = "_ha_favicon_changer_base_render"
 
 
-class PresetIconView(HomeAssistantView):
-    """Serve favicon preset assets without depending on /local."""
-
-    url = f"{PRESET_PUBLIC_ROOT}/{{preset_id}}/{{filename}}"
-    name = "api:ha-favicon-changer:presets"
-    requires_auth = False
-
-    def __init__(self, hass: HomeAssistant) -> None:
-        self.hass = hass
-
-    async def get(self, request: web.Request, preset_id: str, filename: str) -> web.FileResponse:
-        del request
-        file_path = await self.hass.async_add_executor_job(
-            get_preset_file_path,
-            self.hass,
-            preset_id,
-            filename,
-        )
-        if file_path is None:
-            raise web.HTTPNotFound()
-        return web.FileResponse(file_path)
-
-
-def _clean_string(value: Any) -> str | None:
-    if not isinstance(value, str):
-        return None
-    return value.strip() or None
-
-
-def _normalize_config(config: Mapping[str, Any] | None) -> dict[str, str | None]:
-    if not isinstance(config, Mapping):
-        config = {}
-
-    title = _clean_string((config or {}).get(CONF_TITLE))
-    icon_preset = _clean_string((config or {}).get(CONF_ICON_PRESET))
-    custom_icon_path = _clean_string((config or {}).get(CONF_CUSTOM_ICON_PATH))
-
-    return {
-        CONF_TITLE: title,
-        CONF_ICON_PRESET: icon_preset,
-        CONF_CUSTOM_ICON_PATH: custom_icon_path,
-    }
-
-
-def _entry_to_config(config_entry: ConfigEntry) -> dict[str, str | None]:
-    merged: dict[str, Any] = dict(config_entry.data)
-    merged.update(config_entry.options)
-    return _normalize_config(merged)
-
-
-def _get_manifest_value(key: str, default: Any) -> Any:
-    try:
-        return frontend.MANIFEST_JSON[key]
-    except (KeyError, TypeError):
-        _LOGGER.debug("MANIFEST_JSON missing key '%s'; using default", key)
-        return default
-
-
 def _ensure_domain_data(hass: HomeAssistant) -> dict[str, Any]:
-    if DOMAIN in hass.data:
-        return hass.data[DOMAIN]
-
-    manifest_name = str(_get_manifest_value("name", DEFAULT_MANIFEST_NAME))
-    manifest_short_name = str(
-        _get_manifest_value("short_name", DEFAULT_MANIFEST_SHORT_NAME)
-    )
-    manifest_icons = _get_manifest_value("icons", [])
-    if not isinstance(manifest_icons, list):
-        manifest_icons = []
-
-    hass.data[DOMAIN] = {
-        DATA_GET_TEMPLATE: frontend.IndexView.get_template,
-        DATA_MANIFEST_ICONS: list(manifest_icons),
-        DATA_MANIFEST_NAME: manifest_name,
-        DATA_MANIFEST_SHORT_NAME: manifest_short_name,
-        DATA_YAML_CONFIG: None,
-        DATA_ENTRY_CONFIG: None,
-    }
-    hass.http.register_view(PresetIconView(hass))
-    return hass.data[DOMAIN]
-
-
-async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up integration from YAML."""
-    data = _ensure_domain_data(hass)
-    _LOGGER.debug("Initializing integration '%s' from YAML", DOMAIN)
-
-    if DOMAIN in config:
-        data[DATA_YAML_CONFIG] = _normalize_config(config.get(DOMAIN))
-        _LOGGER.info(
-            "Loaded YAML config (title_set=%s, preset=%s)",
-            bool(data[DATA_YAML_CONFIG].get(CONF_TITLE)),
-            data[DATA_YAML_CONFIG].get(CONF_ICON_PRESET),
-        )
-        await _apply_active_config(hass)
-    else:
-        _LOGGER.debug("No YAML config found for '%s'", DOMAIN)
-
-    await async_register_favicon_panel(hass)
-    return True
+    data = hass.data.setdefault(DOMAIN, {})
+    if DATA_GET_TEMPLATE not in data:
+        data[DATA_GET_TEMPLATE] = frontend.IndexView.get_template
+        data[DATA_MANIFEST] = {key: frontend.MANIFEST_JSON[key] for key in _MANIFEST_KEYS}
+    return data
 
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Set up integration from a config entry."""
-    data = _ensure_domain_data(hass)
+    _ensure_domain_data(hass)
     _LOGGER.info("Setting up config entry %s", config_entry.entry_id)
 
     if not config_entry.title or config_entry.title == "Favicon":
         hass.config_entries.async_update_entry(config_entry, title=INTEGRATION_TITLE)
 
     config_entry.async_on_unload(config_entry.add_update_listener(_update_listener))
-    data[DATA_ENTRY_CONFIG] = _entry_to_config(config_entry)
-    _LOGGER.debug(
-        "Config entry resolved (title_set=%s, preset=%s)",
-        bool(data[DATA_ENTRY_CONFIG].get(CONF_TITLE)),
-        data[DATA_ENTRY_CONFIG].get(CONF_ICON_PRESET),
-    )
-
     await async_register_favicon_panel(hass)
-    return await _apply_active_config(hass)
+    await _apply_config(hass, entry_values(config_entry))
+    return True
 
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     _LOGGER.info("Unloading config entry %s", config_entry.entry_id)
-    del config_entry
-    data = _ensure_domain_data(hass)
-    data[DATA_ENTRY_CONFIG] = None
-    result = await _apply_active_config(hass)
-    if data.get(DATA_YAML_CONFIG) is None:
-        async_remove_favicon_panel(hass)
-    return result
-
-
-async def async_remove_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
-    """Handle config entry removal."""
-    _LOGGER.info("Removing config entry %s", config_entry.entry_id)
-    del config_entry
-    data = _ensure_domain_data(hass)
-    data[DATA_ENTRY_CONFIG] = None
-    result = await _apply_active_config(hass)
-    if data.get(DATA_YAML_CONFIG) is None:
-        async_remove_favicon_panel(hass)
-    return result
+    remove_hooks(hass)
+    async_remove_favicon_panel(hass)
+    return True
 
 
 async def _update_listener(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
     """Handle config entry updates."""
     _LOGGER.info("Config entry %s updated", config_entry.entry_id)
-    data = _ensure_domain_data(hass)
-    data[DATA_ENTRY_CONFIG] = _entry_to_config(config_entry)
-    _LOGGER.debug(
-        "Updated config resolved (title_set=%s, preset=%s)",
-        bool(data[DATA_ENTRY_CONFIG].get(CONF_TITLE)),
-        data[DATA_ENTRY_CONFIG].get(CONF_ICON_PRESET),
-    )
-    await _apply_active_config(hass)
+    await _apply_config(hass, entry_values(config_entry))
 
 
-def _active_config(data: Mapping[str, Any]) -> dict[str, str | None]:
-    if data.get(DATA_ENTRY_CONFIG) is not None:
-        return data[DATA_ENTRY_CONFIG]
-    if data.get(DATA_YAML_CONFIG) is not None:
-        return data[DATA_YAML_CONFIG]
-    return {
-        CONF_TITLE: None,
-        CONF_ICON_PRESET: None,
-        CONF_CUSTOM_ICON_PATH: None,
-    }
-
-
-async def _resolve_icon_path(
-    hass: HomeAssistant, config: Mapping[str, str | None]
-) -> str | None:
-    custom_icon_path = config.get(CONF_CUSTOM_ICON_PATH)
-    if custom_icon_path:
-        if custom_icon_path.startswith(CUSTOM_ICON_PUBLIC_ROOT):
-            _LOGGER.info("Using custom uploaded icon from path '%s'", custom_icon_path)
-            removed = await hass.async_add_executor_job(cleanup_preset_storage, hass)
-            if removed:
-                _LOGGER.info(
-                    "Removed %d cached preset folder(s) because a custom icon is active",
-                    removed,
-                )
-            return custom_icon_path
-        _LOGGER.warning("Ignoring unsupported custom icon path: %s", custom_icon_path)
-
-    preset_id = config.get(CONF_ICON_PRESET)
-    if preset_id:
-        _LOGGER.debug("Resolving preset '%s' into local icon path", preset_id)
-        resolved = await hass.async_add_executor_job(
-            resolve_preset_icon_path,
-            hass,
-            preset_id,
-        )
-        if resolved:
-            _LOGGER.info("Using icon preset '%s' from path '%s'", preset_id, resolved)
-            return resolved
-        _LOGGER.warning("Preset '%s' failed to resolve", preset_id)
-
-    removed = await hass.async_add_executor_job(cleanup_preset_storage, hass)
-    if removed:
-        _LOGGER.info(
-            "Removed %d cached preset folder(s) because no preset is currently active",
-            removed,
-        )
-
-    _LOGGER.debug("No icon preset configured")
+def _icon_source(
+    hass: HomeAssistant, config: Mapping[str, Any]
+) -> tuple[str, Path] | None:
+    """Return the public URL path and local directory of the active icons."""
+    if clean_string(config.get(CONF_CUSTOM_ICON_PATH)):
+        return get_custom_icon_public_path(), custom_icon_dir(hass)
+    if preset_id := clean_string(config.get(CONF_ICON_PRESET)):
+        return f"{PRESET_PUBLIC_ROOT}/{preset_id}/", PRESETS_PATH / preset_id
     return None
 
 
-def _join_frontend_path(path: str, filename: str, version: int | None = None) -> str:
-    url = f"{path.rstrip('/')}/{filename}"
-    if version is None:
-        return url
-    return f"{url}?v={version}"
-
-
-def _safe_relative_parts(relative_path: str) -> list[str] | None:
-    parts = [part for part in Path(relative_path).parts if part not in ("", ".")]
-    if any(part == ".." for part in parts):
-        return None
-    return parts
-
-
-def _mime_type_for_icon(filename: str) -> str | None:
-    extension = Path(filename).suffix.lower().lstrip(".")
-    return _ICON_MIME_BY_EXTENSION.get(extension)
-
-
-def find_icons(hass: HomeAssistant, path: str | None) -> dict[str, Any]:
-    """Find favicon files in a managed or legacy /local directory."""
+def find_icons(public_path: str, local_dir: Path) -> dict[str, Any]:
+    """Find favicon files in local_dir and map them to public URLs."""
     icons: dict[str, Any] = {}
     manifest: list[dict[str, str]] = []
-
-    if not path:
-        return icons
-
-    if path.startswith(PRESET_PUBLIC_ROOT):
-        relative_path = path[len(PRESET_PUBLIC_ROOT) :].lstrip("/")
-        relative_parts = _safe_relative_parts(relative_path)
-        if relative_parts is None:
-            _LOGGER.warning("Ignoring unsafe preset icon path: %s", path)
-            return icons
-        local_dir = Path(hass.config.path(*PRESET_STORAGE_ROOT, *relative_parts))
-    elif path.startswith(CUSTOM_ICON_PUBLIC_ROOT):
-        relative_path = path[len(CUSTOM_ICON_PUBLIC_ROOT) :].lstrip("/")
-        relative_parts = _safe_relative_parts(relative_path)
-        if relative_parts is None:
-            _LOGGER.warning("Ignoring unsafe custom icon path: %s", path)
-            return icons
-        local_dir = Path(hass.config.path(*CUSTOM_ICON_STORAGE_ROOT, *relative_parts))
-    elif path.startswith("/local"):
-        local_subpath = path[len("/local") :].lstrip("/")
-        local_dir = Path(hass.config.path("www", local_subpath))
-    else:
-        if path:
-            _LOGGER.warning("Ignoring unsupported icon path: %s", path)
-        return icons
 
     _LOGGER.info("Looking for icons in: %s", local_dir)
 
@@ -352,11 +107,11 @@ def find_icons(hass: HomeAssistant, path: str | None) -> dict[str, Any]:
             continue
 
         filename = entry.name
+        icon_url = f"{public_path}{filename}"
         try:
-            mtime = entry.stat().st_mtime_ns
+            icon_url = f"{icon_url}?v={entry.stat().st_mtime_ns}"
         except OSError:
-            mtime = None
-        icon_url = _join_frontend_path(path, filename, mtime)
+            pass
 
         if filename.lower() == "favicon.ico":
             icons["favicon"] = icon_url
@@ -370,7 +125,7 @@ def find_icons(hass: HomeAssistant, path: str | None) -> dict[str, Any]:
 
         icon_match = _RE_ICON.search(filename)
         if icon_match:
-            mime_type = _mime_type_for_icon(filename)
+            mime_type = mimetypes.guess_type(filename)[0]
             if not mime_type:
                 _LOGGER.debug("Skipping manifest icon with unsupported type: %s", filename)
                 continue
@@ -422,13 +177,12 @@ def _clear_frontend_template_cache(hass: HomeAssistant) -> None:
     _LOGGER.debug("Cleared template cache for %d frontend views", cleared)
 
 
-async def _apply_active_config(hass: HomeAssistant) -> bool:
+async def _apply_config(hass: HomeAssistant, config: Mapping[str, Any]) -> None:
     data = _ensure_domain_data(hass)
-    config = _active_config(data)
 
-    resolved_icon_path = await _resolve_icon_path(hass, config)
-    icons = await hass.async_add_executor_job(find_icons, hass, resolved_icon_path)
-    title = config.get(CONF_TITLE)
+    source = _icon_source(hass, config)
+    icons = await hass.async_add_executor_job(find_icons, *source) if source else {}
+    title = clean_string(config.get(CONF_TITLE))
     _LOGGER.debug(
         "Applying config (title_set=%s, preset=%s, icons_found=%s)",
         bool(title),
@@ -438,7 +192,8 @@ async def _apply_active_config(hass: HomeAssistant) -> bool:
 
     if not title and not icons:
         _LOGGER.info("No title or icons active; restoring default frontend values")
-        return remove_hooks(hass)
+        remove_hooks(hass)
+        return
 
     def _get_template(self: frontend.IndexView):
         template = data[DATA_GET_TEMPLATE](self)
@@ -474,7 +229,7 @@ async def _apply_active_config(hass: HomeAssistant) -> bool:
                 )
             if title:
                 escaped_title = html.escape(title)
-                script_title = json.dumps(title).replace("</", "<\\/")
+                script_title = json.dumps(title).replace("<", "\\u003c")
 
                 text = text.replace(
                     "<title>Home Assistant</title>",
@@ -506,17 +261,10 @@ async def _apply_active_config(hass: HomeAssistant) -> bool:
     frontend.IndexView.get_template = _get_template
     _clear_frontend_template_cache(hass)
 
-    if "manifest" in icons:
-        frontend.add_manifest_json_key("icons", icons["manifest"])
-    else:
-        frontend.add_manifest_json_key("icons", data[DATA_MANIFEST_ICONS].copy())
-
-    if title:
-        frontend.add_manifest_json_key("name", title)
-        frontend.add_manifest_json_key("short_name", title)
-    else:
-        frontend.add_manifest_json_key("name", data[DATA_MANIFEST_NAME])
-        frontend.add_manifest_json_key("short_name", data[DATA_MANIFEST_SHORT_NAME])
+    manifest = data[DATA_MANIFEST]
+    frontend.add_manifest_json_key("icons", icons.get("manifest", manifest["icons"]))
+    frontend.add_manifest_json_key("name", title or manifest["name"])
+    frontend.add_manifest_json_key("short_name", title or manifest["short_name"])
 
     _LOGGER.info(
         "Applied frontend hooks (title_set=%s, favicon=%s, apple=%s, manifest_icons=%d)",
@@ -526,20 +274,15 @@ async def _apply_active_config(hass: HomeAssistant) -> bool:
         len(icons.get("manifest", [])),
     )
 
-    return True
 
-
-def remove_hooks(hass: HomeAssistant) -> bool:
+def remove_hooks(hass: HomeAssistant) -> None:
     """Restore original frontend hooks and manifest values."""
     data = hass.data.get(DOMAIN)
-    if not data:
-        return True
+    if not data or DATA_GET_TEMPLATE not in data:
+        return
 
     frontend.IndexView.get_template = data[DATA_GET_TEMPLATE]
-    frontend.add_manifest_json_key("icons", data[DATA_MANIFEST_ICONS].copy())
-    frontend.add_manifest_json_key("name", data[DATA_MANIFEST_NAME])
-    frontend.add_manifest_json_key("short_name", data[DATA_MANIFEST_SHORT_NAME])
+    for key, value in data[DATA_MANIFEST].items():
+        frontend.add_manifest_json_key(key, value)
     _clear_frontend_template_cache(hass)
     _LOGGER.info("Removed frontend hooks and restored default manifest values")
-
-    return True

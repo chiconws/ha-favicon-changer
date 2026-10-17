@@ -9,10 +9,10 @@ import homeassistant.components.frontend as frontend
 import pytest
 from PIL import Image
 
-integration = importlib.import_module("custom_components.ha_favicon_changer")
-custom_icons = importlib.import_module("custom_components.ha_favicon_changer.custom_icons")
-presets = importlib.import_module("custom_components.ha_favicon_changer.presets")
-PRESET_PUBLIC_ROOT = importlib.import_module("custom_components.ha_favicon_changer.const").PRESET_PUBLIC_ROOT
+integration = importlib.import_module("custom_components.favicon_changer")
+custom_icons = importlib.import_module("custom_components.favicon_changer.custom_icons")
+presets = importlib.import_module("custom_components.favicon_changer.presets")
+PRESET_PUBLIC_ROOT = importlib.import_module("custom_components.favicon_changer.const").PRESET_PUBLIC_ROOT
 
 
 def _image(fmt: str, size: tuple[int, int], **kwargs) -> bytes:
@@ -105,7 +105,7 @@ async def test_render_escapes_title_and_swaps_icons(tmp_path, monkeypatch):
     title = '</script><img src=x onerror="alert(1)">'
 
     await integration._apply_config(_fake_hass(tmp_path), {"title": title, "icon_preset": preset_id})
-    html = frontend.IndexView.get_template(None).render()
+    html = frontend.IndexView.get_template(None).render()  # type: ignore[arg-type]
 
     # Every "<" in the script string is \u003c, so neither "</script" nor "<!--" can break out.
     assert "<img" not in html

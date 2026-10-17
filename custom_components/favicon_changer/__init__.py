@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import html
 import json
 import logging
@@ -40,7 +41,7 @@ mimetypes.add_type("image/webp", ".webp")
 DATA_GET_TEMPLATE = "get_template"
 DATA_MANIFEST = "manifest"
 _MANIFEST_KEYS = ("icons", "name", "short_name")
-_TEMPLATE_BASE_RENDER_ATTR = "_ha_favicon_changer_base_render"
+_TEMPLATE_BASE_RENDER_ATTR = "_favicon_changer_base_render"
 
 
 def _ensure_domain_data(hass: HomeAssistant) -> dict[str, Any]:
@@ -107,10 +108,8 @@ def find_icons(public_path: str, local_dir: Path) -> dict[str, Any]:
 
         filename = entry.name
         icon_url = f"{public_path}{filename}"
-        try:
+        with contextlib.suppress(OSError):
             icon_url = f"{icon_url}?v={entry.stat().st_mtime_ns}"
-        except OSError:
-            pass
 
         if filename.lower() == "favicon.ico":
             icons["favicon"] = icon_url
@@ -228,7 +227,7 @@ async def _apply_config(hass: HomeAssistant, config: Mapping[str, Any]) -> None:
         template.render = new_render
         return template
 
-    frontend.IndexView.get_template = _get_template
+    setattr(frontend.IndexView, "get_template", _get_template)  # noqa: B010 - patching is the feature
     _clear_frontend_template_cache(hass)
 
     manifest = data[DATA_MANIFEST]
@@ -251,7 +250,7 @@ def remove_hooks(hass: HomeAssistant) -> None:
     if not data or DATA_GET_TEMPLATE not in data:
         return
 
-    frontend.IndexView.get_template = data[DATA_GET_TEMPLATE]
+    setattr(frontend.IndexView, "get_template", data[DATA_GET_TEMPLATE])  # noqa: B010
     for key, value in data[DATA_MANIFEST].items():
         frontend.add_manifest_json_key(key, value)
     _clear_frontend_template_cache(hass)

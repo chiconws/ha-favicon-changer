@@ -1,5 +1,51 @@
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+# Like HA core: long lines are the formatter's job, not a lint failure.
+ignore = ["E501"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
 pythonpath = ["."]
 testpaths = ["tests"]
+addopts = "--strict-config --strict-markers"
+
+[tool.coverage.run]
+branch = true
+source = ["custom_components.favicon_changer"]
+
+[tool.coverage.report]
+# ratchet upwards only (STANDARD.md §4)
+fail_under = 95
+show_missing = true
+skip_empty = true
+
+[tool.mypy]
+python_version = "3.14"
+explicit_package_bases = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "pytest_homeassistant_custom_component.*"
+ignore_missing_imports = true
+
+# Same settings Pylance reads in VS Code, so the editor and the gate agree.
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.14"
+include = ["custom_components", "tests"]
+# HA entities override cached_property attributes with properties by design.
+reportIncompatibleVariableOverride = false
+reportIncompatibleMethodOverride = false
+# HA documents imports like `from homeassistant.components.http import StaticPathConfig`;
+# moving them to private submodules would break older HA versions.
+reportPrivateImportUsage = false
+executionEnvironments = [
+  # Tests read FlowResult keys that exist for the step under test.
+  { root = "tests", extraPaths = ["."], reportTypedDictNotRequiredAccess = false },
+  { root = "custom_components", extraPaths = ["."] },
+]

@@ -1,20 +1,26 @@
-# Python cache files
+# Python
 __pycache__/
+*.py[cod]
 .venv/
+venv/
+*.egg-info/
+build/
+dist/
 
-# IDE files
-.vscode/
-.ruff_cache/
-
-# OS specific files
-Thumbs.db
-
-# Development container files
-.devcontainer.json
-docker-compose.yml
-config
-deps/
-
-# Test artifacts
-.coverage
+# Tooling caches / coverage
+.mypy_cache/
 .pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local-only dev files (never commit credentials)
+.vscode/
+.claude/settings.local.json
+*.local.json
+
+# OS / IDE
+.idea/
+.DS_Store
+Thumbs.db

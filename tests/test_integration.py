@@ -2,6 +2,7 @@
 
 import importlib
 import io
+from typing import Any
 from unittest.mock import patch
 
 import aiohttp
@@ -13,7 +14,7 @@ from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from PIL import Image
 from pytest_homeassistant_custom_component.common import CLIENT_ID
 
-DOMAIN = "ha_favicon_changer"
+DOMAIN = "favicon_changer"
 CONFIG_URL = "/api/ha-favicon-changer/config"
 UPLOAD_URL = "/api/ha-favicon-changer/upload"
 
@@ -70,7 +71,7 @@ async def test_config_flow_creates_entry(hass: HomeAssistant, http):
 
 
 async def test_config_flow_aborts_without_presets(hass: HomeAssistant, http):
-    config_flow = importlib.import_module("custom_components.ha_favicon_changer.config_flow")
+    config_flow = importlib.import_module("custom_components.favicon_changer.config_flow")
     with patch.object(config_flow, "load_preset_catalog", return_value=()):
         result = await hass.config_entries.flow.async_init(
             DOMAIN, context={"source": config_entries.SOURCE_USER}
@@ -97,7 +98,7 @@ async def test_panel_get_and_switch_preset(hass: HomeAssistant, entry, hass_clie
 
 async def test_panel_post_rejects_bad_input(hass: HomeAssistant, entry, hass_client):
     client = await hass_client()
-    cases = [
+    cases: list[tuple[dict[str, Any], str]] = [
         ({"data": "not json"}, "Request body must be JSON."),
         ({"json": []}, "Request body must be an object."),
         ({"json": {"title": 5}}, "Title must be text."),

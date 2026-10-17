@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import voluptuous as vol
+import probatio
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.helpers.selector import (
@@ -54,10 +54,10 @@ class FaviconConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 },
             )
 
-        schema = vol.Schema(
+        schema = probatio.Schema(
             {
-                vol.Optional(CONF_TITLE): vol.All(str, vol.Length(max=MAX_TITLE_LENGTH)),
-                vol.Required(CONF_ICON_PRESET): SelectSelector(
+                probatio.Optional(CONF_TITLE): probatio.All(str, probatio.Length(max=MAX_TITLE_LENGTH)),
+                probatio.Required(CONF_ICON_PRESET): SelectSelector(
                     SelectSelectorConfig(
                         options=[
                             SelectOptionDict(value=preset["id"], label=preset["name"])

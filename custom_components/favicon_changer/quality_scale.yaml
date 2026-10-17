@@ -1,0 +1,62 @@
+# Target: Silver (ha-standards). The integration has no entities or devices; it patches the frontend.
+rules:
+  # Bronze
+  action-setup:
+    status: exempt
+    comment: No custom actions; the panel uses admin-only HTTP views.
+  appropriate-polling:
+    status: exempt
+    comment: Nothing is polled.
+  brands: done
+  common-modules:
+    status: exempt
+    comment: No entities or coordinator.
+  config-flow-test-coverage: done
+  config-flow: done
+  dependency-transparency: done
+  docs-actions:
+    status: exempt
+    comment: No custom actions.
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: done
+  entity-event-setup:
+    status: exempt
+    comment: No entities.
+  entity-unique-id:
+    status: exempt
+    comment: No entities.
+  has-entity-name:
+    status: exempt
+    comment: No entities.
+  runtime-data:
+    status: exempt
+    comment: hass.data keeps the pristine frontend hooks, which must outlive entry reloads.
+  test-before-configure:
+    status: exempt
+    comment: Nothing external to reach.
+  test-before-setup:
+    status: exempt
+    comment: Nothing external to reach.
+  unique-config-entry: done
+  # Silver
+  action-exceptions:
+    status: exempt
+    comment: No custom actions.
+  config-entry-unloading: done
+  docs-configuration-parameters: done
+  docs-installation-parameters: done
+  entity-unavailable:
+    status: exempt
+    comment: No entities.
+  integration-owner: done
+  log-when-unavailable:
+    status: exempt
+    comment: No entities.
+  parallel-updates:
+    status: exempt
+    comment: No entities.
+  reauthentication-flow:
+    status: exempt
+    comment: No credentials.
+  test-coverage: done

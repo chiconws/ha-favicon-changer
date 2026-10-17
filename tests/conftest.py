@@ -14,7 +14,7 @@ import custom_components  # noqa: F401
 # harness's lingering-thread check doesn't blame whichever test runs first.
 pycares._shutdown_manager.start()
 
-DOMAIN = "ha_favicon_changer"
+DOMAIN = "favicon_changer"
 
 
 @pytest.fixture(autouse=True)

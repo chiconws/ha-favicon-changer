@@ -6,7 +6,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 
-DOMAIN = "ha_favicon_changer"
+DOMAIN = "favicon_changer"
 INTEGRATION_TITLE = "Favicon Changer"
 
 CONF_TITLE = "title"

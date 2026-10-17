@@ -41,6 +41,9 @@ include = ["custom_components", "tests"]
 # HA entities override cached_property attributes with properties by design.
 reportIncompatibleVariableOverride = false
 reportIncompatibleMethodOverride = false
+# HA documents imports like `from homeassistant.components.http import StaticPathConfig`;
+# moving them to private submodules would break older HA versions.
+reportPrivateImportUsage = false
 executionEnvironments = [
   # Tests read FlowResult keys that exist for the step under test.
   { root = "tests", extraPaths = ["."], reportTypedDictNotRequiredAccess = false },

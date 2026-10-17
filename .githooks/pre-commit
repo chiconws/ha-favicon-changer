@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Same checks as CI. A failing check blocks the commit; skip once with `git commit --no-verify`.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+bin=.venv/bin
+[ -x "$bin/python" ] || { echo "pre-commit: .venv missing, see AGENTS.md"; exit 1; }
+run() { echo "pre-commit: $*"; "$@" >/tmp/pre-commit.$$ 2>&1 || { cat /tmp/pre-commit.$$; rm -f /tmp/pre-commit.$$; exit 1; }; rm -f /tmp/pre-commit.$$; }
+run "$bin/python" -m ruff check custom_components tests
+run "$bin/python" -m mypy custom_components tests
+run "$bin/pyright"
+run "$bin/python" -m pytest -q -x -p no:cacheprovider

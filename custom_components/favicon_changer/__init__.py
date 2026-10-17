@@ -227,7 +227,7 @@ async def _apply_config(hass: HomeAssistant, config: Mapping[str, Any]) -> None:
         template.render = new_render
         return template
 
-    frontend.IndexView.get_template = _get_template
+    setattr(frontend.IndexView, "get_template", _get_template)  # noqa: B010 - patching is the feature
     _clear_frontend_template_cache(hass)
 
     manifest = data[DATA_MANIFEST]
@@ -250,7 +250,7 @@ def remove_hooks(hass: HomeAssistant) -> None:
     if not data or DATA_GET_TEMPLATE not in data:
         return
 
-    frontend.IndexView.get_template = data[DATA_GET_TEMPLATE]
+    setattr(frontend.IndexView, "get_template", data[DATA_GET_TEMPLATE])  # noqa: B010
     for key, value in data[DATA_MANIFEST].items():
         frontend.add_manifest_json_key(key, value)
     _clear_frontend_template_cache(hass)

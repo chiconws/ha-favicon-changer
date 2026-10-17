@@ -33,6 +33,12 @@ jobs:
       - name: Run Ruff
         run: python -m ruff check custom_components/favicon_changer tests
 
+      - name: Run mypy
+        run: python -m mypy custom_components/favicon_changer tests
+
+      - name: Run Pyright
+        run: pyright
+
       - name: Run tests with branch coverage
         run: |
           python -m coverage erase

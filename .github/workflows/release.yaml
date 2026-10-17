@@ -1,0 +1,44 @@
+name: Release
+
+# Push a vX.Y.Z tag on main. This checks the tag against manifest.json, runs the
+# checks and opens a DRAFT release titled with the tag. Review it on GitHub and
+# click Publish; HACS only sees published releases.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  draft:
+    name: Draft release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Tag must match manifest version
+        run: |
+          version=$(python3 -c "import json; print(json.load(open('custom_components/favicon_changer/manifest.json'))['version'])")
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "::error::tag $GITHUB_REF_NAME != manifest v$version"; exit 1; }
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements_test.txt
+
+      - name: Run checks
+        run: |
+          python -m pip install -r requirements_test.txt
+          python -m ruff check custom_components/favicon_changer tests
+          python -m pytest -q
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "$GITHUB_REF_NAME" --generate-notes

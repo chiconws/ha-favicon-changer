@@ -13,7 +13,7 @@ from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from PIL import Image
 from pytest_homeassistant_custom_component.common import CLIENT_ID
 
-DOMAIN = "ha-favicon-changer"
+DOMAIN = "ha_favicon_changer"
 CONFIG_URL = "/api/ha-favicon-changer/config"
 UPLOAD_URL = "/api/ha-favicon-changer/upload"
 
@@ -37,12 +37,12 @@ async def test_setup_applies_config_and_unload_restores(hass: HomeAssistant, ent
     assert frontend.MANIFEST_JSON["name"] == "My Home"
     assert frontend.MANIFEST_JSON["icons"][0]["src"].startswith("/api/ha-favicon-changer/presets/beta/")
     assert frontend.IndexView.get_template is not original_template
-    assert DOMAIN in hass.data[frontend.DATA_PANELS]
+    assert "ha-favicon-changer" in hass.data[frontend.DATA_PANELS]
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     assert frontend.MANIFEST_JSON["name"] == "Home Assistant"
     assert frontend.IndexView.get_template is original_template
-    assert DOMAIN not in hass.data[frontend.DATA_PANELS]
+    assert "ha-favicon-changer" not in hass.data[frontend.DATA_PANELS]
 
 
 async def test_empty_config_keeps_frontend_defaults(hass: HomeAssistant, entry):
@@ -70,7 +70,7 @@ async def test_config_flow_creates_entry(hass: HomeAssistant, http):
 
 
 async def test_config_flow_aborts_without_presets(hass: HomeAssistant, http):
-    config_flow = importlib.import_module("custom_components.ha-favicon-changer.config_flow")
+    config_flow = importlib.import_module("custom_components.ha_favicon_changer.config_flow")
     with patch.object(config_flow, "load_preset_catalog", return_value=()):
         result = await hass.config_entries.flow.async_init(
             DOMAIN, context={"source": config_entries.SOURCE_USER}
@@ -175,3 +175,4 @@ async def test_panel_writes_need_a_config_entry(hass: HomeAssistant, entry, hass
     assert (await response.json())["error"] == "Create the Favicon Changer integration before saving."
     response = await client.post(UPLOAD_URL, data=_upload_form(_png(64)))
     assert (await response.json())["error"] == "Create the Favicon Changer integration before uploading."
+

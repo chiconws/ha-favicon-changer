@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import html
 import json
 import logging
@@ -107,10 +108,8 @@ def find_icons(public_path: str, local_dir: Path) -> dict[str, Any]:
 
         filename = entry.name
         icon_url = f"{public_path}{filename}"
-        try:
+        with contextlib.suppress(OSError):
             icon_url = f"{icon_url}?v={entry.stat().st_mtime_ns}"
-        except OSError:
-            pass
 
         if filename.lower() == "favicon.ico":
             icons["favicon"] = icon_url

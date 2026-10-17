@@ -1,5 +1,5 @@
 {
-  "domain": "ha-favicon-changer",
+  "domain": "ha_favicon_changer",
   "name": "Favicon Changer",
   "codeowners": ["@chiconws"],
   "config_flow": true,
@@ -9,5 +9,5 @@
   "issue_tracker": "https://github.com/chiconws/ha-favicon-changer/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "2.0.2"
+  "version": "3.0.0"
 }

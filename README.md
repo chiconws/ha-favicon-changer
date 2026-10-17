@@ -17,7 +17,6 @@ This repository is a maintained fork of an older integration that was no longer 
 - Provides built-in icon presets (auto-discovered from the integration `presets/` folder).
 - Adds a Home Assistant sidebar panel for previewing and applying presets.
 - Supports uploading one custom icon from the panel.
-- Automatically keeps only the active preset in `/config/www/favicon-presets` to avoid clutter.
 
 ## Installation
 
@@ -34,9 +33,13 @@ This repository is a maintained fork of an older integration that was no longer 
 
 ### Method 2: Manual Installation
 
-1. Copy `custom_components/ha-favicon-changer/` to:
-   - `<config>/custom_components/ha-favicon-changer/`
+1. Copy `custom_components/ha_favicon_changer/` to:
+   - `<config>/custom_components/ha_favicon_changer/`
 2. Restart Home Assistant.
+
+### Upgrading from 2.0.x
+
+The integration folder is now `custom_components/ha_favicon_changer/` (Home Assistant only shows brand icons for domains without hyphens). After updating, delete the old `custom_components/ha-favicon-changer/` folder and restart. Then, in `Settings -> Devices & Services`, delete the old Favicon Changer entry (it shows as not loaded) and add `Favicon Changer` again. An uploaded custom icon is kept and can be selected again in the panel.
 
 ## Configuration (UI)
 
@@ -71,7 +74,7 @@ Add debug logging in `configuration.yaml`:
 ```yaml
 logger:
   logs:
-    custom_components.ha-favicon-changer: debug
+    custom_components.ha_favicon_changer: debug
 ```
 
 Then restart and check logs.

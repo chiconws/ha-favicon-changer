@@ -15,9 +15,8 @@ CONF_CUSTOM_ICON_PATH = "custom_icon_path"
 
 PRESET_PUBLIC_ROOT = "/api/ha-favicon-changer/presets"
 
-CUSTOM_ICON_PUBLIC_ROOT = "/api/ha-favicon-changer/custom"
-CUSTOM_ICON_STORAGE_ROOT = ("www", "favicon-changer-custom")
-CUSTOM_ICON_SLOT = "current"
+CUSTOM_ICON_PUBLIC_PATH = "/api/ha-favicon-changer/custom/"
+CUSTOM_ICON_STORAGE_DIR = ("www", "favicon-changer-custom", "current")
 MAX_UPLOAD_BYTES = 1024 * 1024
 MAX_TITLE_LENGTH = 120
 

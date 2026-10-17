@@ -19,13 +19,14 @@ from .const import (
     CONF_CUSTOM_ICON_PATH,
     CONF_ICON_PRESET,
     CONF_TITLE,
+    CUSTOM_ICON_PUBLIC_PATH,
     DOMAIN,
     INTEGRATION_TITLE,
     PRESET_PUBLIC_ROOT,
     clean_string,
     entry_values,
 )
-from .custom_icons import custom_icon_dir, get_custom_icon_public_path
+from .custom_icons import custom_icon_dir
 from .panel import async_register_favicon_panel, async_remove_favicon_panel
 from .presets import PRESETS_PATH
 
@@ -83,7 +84,7 @@ def _icon_source(
 ) -> tuple[str, Path] | None:
     """Return the public URL path and local directory of the active icons."""
     if clean_string(config.get(CONF_CUSTOM_ICON_PATH)):
-        return get_custom_icon_public_path(), custom_icon_dir(hass)
+        return CUSTOM_ICON_PUBLIC_PATH, custom_icon_dir(hass)
     if preset_id := clean_string(config.get(CONF_ICON_PRESET)):
         return f"{PRESET_PUBLIC_ROOT}/{preset_id}/", PRESETS_PATH / preset_id
     return None
@@ -93,8 +94,6 @@ def find_icons(public_path: str, local_dir: Path) -> dict[str, Any]:
     """Find favicon files in local_dir and map them to public URLs."""
     icons: dict[str, Any] = {}
     manifest: list[dict[str, str]] = []
-
-    _LOGGER.info("Looking for icons in: %s", local_dir)
 
     try:
         entries = list(local_dir.iterdir())
@@ -115,12 +114,10 @@ def find_icons(public_path: str, local_dir: Path) -> dict[str, Any]:
 
         if filename.lower() == "favicon.ico":
             icons["favicon"] = icon_url
-            _LOGGER.info("Found favicon: %s", icon_url)
             continue
 
         if _RE_APPLE.search(filename):
             icons["apple"] = icon_url
-            _LOGGER.info("Found apple icon: %s", icon_url)
             continue
 
         icon_match = _RE_ICON.search(filename)
@@ -136,7 +133,6 @@ def find_icons(public_path: str, local_dir: Path) -> dict[str, Any]:
                     "type": mime_type,
                 }
             )
-            _LOGGER.info("Found icon: %s", icon_url)
 
     if manifest:
         manifest.sort(key=lambda item: int(item["sizes"].split("x", 1)[0]))
@@ -144,19 +140,11 @@ def find_icons(public_path: str, local_dir: Path) -> dict[str, Any]:
 
     if "favicon" not in icons and manifest:
         icons["favicon"] = manifest[0]["src"]
-        _LOGGER.info("No favicon.ico found; using icon fallback: %s", icons["favicon"])
 
     if not icons:
         _LOGGER.warning(
             "No supported icon files found in %s. Expected favicon.ico, favicon-apple-*.png, or favicon-<size>x<size>.<ext>",
             local_dir,
-        )
-    else:
-        _LOGGER.info(
-            "Icon scan summary (favicon=%s, apple=%s, manifest_icons=%d)",
-            "favicon" in icons,
-            "apple" in icons,
-            len(icons.get("manifest", [])),
         )
 
     return icons
@@ -204,56 +192,38 @@ async def _apply_config(hass: HomeAssistant, config: Mapping[str, Any]) -> None:
 
         def new_render(*args: Any, **kwargs: Any) -> str:
             text = base_render(*args, **kwargs)
+            head = ""
             if "favicon" in icons:
                 text = text.replace("/static/icons/favicon.ico", icons["favicon"])
+                head += f'<link rel="shortcut icon" href="{icons["favicon"]}">'
             if "apple" in icons:
                 text = text.replace(
-                    "/static/icons/favicon-apple-180x180.png",
-                    icons["apple"],
-                )
-            if "favicon" in icons:
-                text = text.replace(
-                    "</head>",
-                    (
-                        f'<link rel="shortcut icon" href="{icons["favicon"]}">'
-                        "</head>"
-                    ),
+                    "/static/icons/favicon-apple-180x180.png", icons["apple"]
                 )
             if "manifest" in icons:
-                text = text.replace(
-                    "</head>",
-                    (
-                        f'<link rel="icon" type="{icons["manifest"][0]["type"]}" href="{icons["manifest"][0]["src"]}">'
-                        "</head>"
-                    ),
-                )
+                first = icons["manifest"][0]
+                head += f'<link rel="icon" type="{first["type"]}" href="{first["src"]}">'
             if title:
-                escaped_title = html.escape(title)
                 script_title = json.dumps(title).replace("<", "\\u003c")
-
                 text = text.replace(
                     "<title>Home Assistant</title>",
-                    f"<title>{escaped_title}</title>",
+                    f"<title>{html.escape(title)}</title>",
                 )
-                text = text.replace(
-                    "</head>",
-                    (
-                        "<script type=\"module\">"
-                        f"const customTitle = {script_title};"
-                        "const rewriteTitle = () => {"
-                        "if (document.title.includes('Home Assistant')) {"
-                        "document.title = document.title.replace(/Home Assistant/g, customTitle);"
-                        "} else if (!document.title) {"
-                        "document.title = customTitle;"
-                        "}"
-                        "};"
-                        "rewriteTitle();"
-                        "window.setInterval(rewriteTitle, 1000);"
-                        "</script></head>"
-                    ),
+                head += (
+                    "<script type=\"module\">"
+                    f"const customTitle = {script_title};"
+                    "const rewriteTitle = () => {"
+                    "if (document.title.includes('Home Assistant')) {"
+                    "document.title = document.title.replace(/Home Assistant/g, customTitle);"
+                    "} else if (!document.title) {"
+                    "document.title = customTitle;"
+                    "}"
+                    "};"
+                    "rewriteTitle();"
+                    "window.setInterval(rewriteTitle, 1000);"
+                    "</script>"
                 )
-
-            return text
+            return text.replace("</head>", f"{head}</head>")
 
         template.render = new_render
         return template

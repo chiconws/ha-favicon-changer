@@ -12,12 +12,7 @@ from pathlib import Path
 from homeassistant.core import HomeAssistant
 from PIL import Image
 
-from .const import (
-    CUSTOM_ICON_PUBLIC_ROOT,
-    CUSTOM_ICON_SLOT,
-    CUSTOM_ICON_STORAGE_ROOT,
-    MAX_UPLOAD_BYTES,
-)
+from .const import CUSTOM_ICON_PUBLIC_PATH, CUSTOM_ICON_STORAGE_DIR, MAX_UPLOAD_BYTES
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -69,19 +64,12 @@ class UploadedIcon:
 
 def custom_icon_dir(hass: HomeAssistant) -> Path:
     """Return the directory holding the active custom icon files."""
-    return Path(hass.config.path(*CUSTOM_ICON_STORAGE_ROOT, CUSTOM_ICON_SLOT))
+    return Path(hass.config.path(*CUSTOM_ICON_STORAGE_DIR))
 
 
-def get_custom_icon_public_path() -> str:
-    """Return the public directory path for the active custom icon."""
-    return f"{CUSTOM_ICON_PUBLIC_ROOT}/{CUSTOM_ICON_SLOT}/"
-
-
-def get_custom_icon_file_path(
-    hass: HomeAssistant, slot: str, filename: str
-) -> Path | None:
+def get_custom_icon_file_path(hass: HomeAssistant, filename: str) -> Path | None:
     """Return the custom icon file path for a public asset request."""
-    if slot != CUSTOM_ICON_SLOT or Path(filename).name != filename:
+    if Path(filename).name != filename:
         return None
 
     file_path = custom_icon_dir(hass) / filename
@@ -109,7 +97,7 @@ def get_custom_icon_preview_url(hass: HomeAssistant) -> str | None:
             version = candidate.stat().st_mtime_ns
         except OSError:
             continue
-        return f"{get_custom_icon_public_path()}{candidate.name}?v={version}"
+        return f"{CUSTOM_ICON_PUBLIC_PATH}{candidate.name}?v={version}"
 
     return None
 
@@ -129,24 +117,13 @@ def _identify_icon(content: bytes) -> UploadedIcon:
     return UploadedIcon("ico", *max(square))
 
 
-def _validate_uploaded_icon(
-    filename: str | None, content_type: str | None, content: bytes
-) -> UploadedIcon:
+def _validate_uploaded_icon(content: bytes) -> UploadedIcon:
     if not content:
         raise CustomIconError("Uploaded file is empty.")
     if len(content) > MAX_UPLOAD_BYTES:
         raise CustomIconError("Icon is larger than 1 MiB.")
 
-    suffix = Path(filename or "").suffix.lower()
-    extension_hint = SUPPORTED_EXTENSIONS.get(suffix)
-    content_type_hint = SUPPORTED_CONTENT_TYPES.get((content_type or "").lower())
-
     icon = _identify_icon(content)
-
-    if extension_hint and extension_hint != icon.extension:
-        raise CustomIconError("File extension does not match the icon data.")
-    if content_type_hint and content_type_hint != icon.extension:
-        raise CustomIconError("Content type does not match the icon data.")
 
     min_size = MIN_ICO_SIZE if icon.extension == "ico" else MIN_ICON_SIZE
     if icon.width != icon.height:
@@ -161,13 +138,11 @@ def _validate_uploaded_icon(
     return icon
 
 
-def save_custom_icon(
-    hass: HomeAssistant, filename: str | None, content_type: str | None, content: bytes
-) -> str:
-    """Validate and save an uploaded icon, returning its public path."""
-    icon = _validate_uploaded_icon(filename, content_type, content)
+def save_custom_icon(hass: HomeAssistant, content: bytes) -> None:
+    """Validate and save an uploaded icon."""
+    icon = _validate_uploaded_icon(content)
     destination_dir = custom_icon_dir(hass)
-    staging_dir: Path | None = destination_dir.with_name(f".{CUSTOM_ICON_SLOT}-staging")
+    staging_dir: Path | None = destination_dir.with_name(f".{destination_dir.name}-staging")
 
     try:
         if staging_dir.exists():
@@ -207,4 +182,3 @@ def save_custom_icon(
         icon.height,
         destination_dir,
     )
-    return get_custom_icon_public_path()

@@ -22,3 +22,27 @@ source = ["custom_components.favicon_changer"]
 fail_under = 85
 show_missing = true
 skip_empty = true
+
+[tool.mypy]
+python_version = "3.14"
+explicit_package_bases = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "pytest_homeassistant_custom_component.*"
+ignore_missing_imports = true
+
+# Same settings Pylance reads in VS Code, so the editor and the gate agree.
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.14"
+include = ["custom_components", "tests"]
+# HA entities override cached_property attributes with properties by design.
+reportIncompatibleVariableOverride = false
+reportIncompatibleMethodOverride = false
+executionEnvironments = [
+  # Tests read FlowResult keys that exist for the step under test.
+  { root = "tests", extraPaths = ["."], reportTypedDictNotRequiredAccess = false },
+  { root = "custom_components", extraPaths = ["."] },
+]

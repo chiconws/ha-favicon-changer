@@ -28,7 +28,7 @@ def restore_frontend():
     get_template = frontend.IndexView.get_template
     manifest = {key: frontend.MANIFEST_JSON[key] for key in ("icons", "name", "short_name")}
     yield
-    frontend.IndexView.get_template = get_template
+    setattr(frontend.IndexView, "get_template", get_template)  # noqa: B010
     for key, value in manifest.items():
         frontend.add_manifest_json_key(key, value)
 

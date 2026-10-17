@@ -105,7 +105,9 @@ def get_custom_icon_preview_url(hass: HomeAssistant) -> str | None:
 def _identify_icon(content: bytes) -> UploadedIcon:
     try:
         with Image.open(BytesIO(content), formats=list(_FORMAT_EXTENSIONS)) as image:
-            extension = _FORMAT_EXTENSIONS[image.format]
+            extension = _FORMAT_EXTENSIONS.get(image.format or "")
+            if extension is None:
+                raise ValueError(f"unsupported format {image.format}")
             if extension != "ico":
                 return UploadedIcon(extension, *image.size)
             square = [size for size in image.info.get("sizes", ()) if size[0] == size[1]]
@@ -142,7 +144,8 @@ def save_custom_icon(hass: HomeAssistant, content: bytes) -> None:
     """Validate and save an uploaded icon."""
     icon = _validate_uploaded_icon(content)
     destination_dir = custom_icon_dir(hass)
-    staging_dir: Path | None = destination_dir.with_name(f".{destination_dir.name}-staging")
+    staging_dir = destination_dir.with_name(f".{destination_dir.name}-staging")
+    moved = False
 
     try:
         if staging_dir.exists():
@@ -165,11 +168,11 @@ def save_custom_icon(hass: HomeAssistant, content: bytes) -> None:
         if destination_dir.exists():
             shutil.rmtree(destination_dir)
         staging_dir.rename(destination_dir)
-        staging_dir = None
+        moved = True
     except OSError as err:
         raise CustomIconError(f"Could not save icon: {err}") from err
     finally:
-        if staging_dir is not None and staging_dir.exists():
+        if not moved and staging_dir.exists():
             try:
                 shutil.rmtree(staging_dir)
             except OSError:

@@ -2,6 +2,7 @@
 
 import importlib
 import io
+from typing import Any
 from unittest.mock import patch
 
 import aiohttp
@@ -97,7 +98,7 @@ async def test_panel_get_and_switch_preset(hass: HomeAssistant, entry, hass_clie
 
 async def test_panel_post_rejects_bad_input(hass: HomeAssistant, entry, hass_client):
     client = await hass_client()
-    cases = [
+    cases: list[tuple[dict[str, Any], str]] = [
         ({"data": "not json"}, "Request body must be JSON."),
         ({"json": []}, "Request body must be an object."),
         ({"json": {"title": 5}}, "Title must be text."),

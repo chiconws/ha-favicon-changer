@@ -19,7 +19,7 @@ source = ["custom_components.favicon_changer"]
 
 [tool.coverage.report]
 # ratchet upwards only (STANDARD.md §4)
-fail_under = 85
+fail_under = 95
 show_missing = true
 skip_empty = true
 

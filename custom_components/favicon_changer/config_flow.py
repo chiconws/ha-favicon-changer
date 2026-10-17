@@ -3,15 +3,9 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    import probatio as vol
-else:
-    try:  # Home Assistant 2026.10+ validates with probatio, a drop-in for voluptuous
-        import probatio as vol
-    except ImportError:  # pragma: no cover - older Home Assistant
-        import voluptuous as vol
+import probatio as vol
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.helpers.selector import (

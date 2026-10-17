@@ -24,33 +24,32 @@ def _image(fmt: str, size: tuple[int, int], **kwargs) -> bytes:
 
 
 @pytest.mark.parametrize(
-    ("fmt", "name", "extension"),
-    [("PNG", "a.png", "png"), ("WEBP", "a.webp", "webp"), ("GIF", "a.gif", "gif"), ("JPEG", "a.jpg", "jpg")],
+    ("fmt", "extension"),
+    [("PNG", "png"), ("WEBP", "webp"), ("GIF", "gif"), ("JPEG", "jpg")],
 )
-def test_accepts_supported_formats(fmt, name, extension):
-    icon = custom_icons._validate_uploaded_icon(name, None, _image(fmt, (128, 128)))
+def test_accepts_supported_formats(fmt, extension):
+    icon = custom_icons._validate_uploaded_icon(_image(fmt, (128, 128)))
     assert (icon.extension, icon.width, icon.height) == (extension, 128, 128)
 
 
 def test_ico_uses_largest_square_entry():
     content = _image("ICO", (48, 48), sizes=[(16, 16), (32, 32), (48, 48)])
-    icon = custom_icons._validate_uploaded_icon("a.ico", "image/x-icon", content)
+    icon = custom_icons._validate_uploaded_icon(content)
     assert (icon.extension, icon.width) == ("ico", 48)
 
 
 @pytest.mark.parametrize(
-    ("name", "content", "message"),
+    ("content", "message"),
     [
-        ("a.png", b"not an image", "Upload a PNG"),
-        ("a.png", _image("PNG", (128, 64)), "square"),
-        ("a.png", _image("PNG", (32, 32)), "at least 64x64"),
-        ("a.png", _image("PNG", (2048, 2048)), "no larger than"),
-        ("a.gif", _image("PNG", (128, 128)), "extension does not match"),
+        (b"not an image", "Upload a PNG"),
+        (_image("PNG", (128, 64)), "square"),
+        (_image("PNG", (32, 32)), "at least 64x64"),
+        (_image("PNG", (2048, 2048)), "no larger than"),
     ],
 )
-def test_rejects_invalid_uploads(name, content, message):
+def test_rejects_invalid_uploads(content, message):
     with pytest.raises(custom_icons.CustomIconError, match=message):
-        custom_icons._validate_uploaded_icon(name, None, content)
+        custom_icons._validate_uploaded_icon(content)
 
 
 def test_find_icons_reads_shipped_preset():
@@ -87,16 +86,15 @@ def _fake_hass(tmp_path: Path) -> SimpleNamespace:
 
 def test_save_custom_icon_replaces_previous_upload(tmp_path):
     hass = _fake_hass(tmp_path)
-    custom_icons.save_custom_icon(hass, "a.png", "image/png", _image("PNG", (128, 128)))
+    custom_icons.save_custom_icon(hass, _image("PNG", (128, 128)))
     slot = custom_icons.custom_icon_dir(hass)
     assert sorted(p.name for p in slot.iterdir()) == ["favicon-128x128.png", "favicon-apple-180x180.png"]
 
     ico = _image("ICO", (48, 48), sizes=[(16, 16), (48, 48)])
-    path = custom_icons.save_custom_icon(hass, "a.ico", None, ico)
-    assert path == custom_icons.get_custom_icon_public_path()
+    custom_icons.save_custom_icon(hass, ico)
     assert sorted(p.name for p in slot.iterdir()) == ["favicon-48x48.ico", "favicon.ico"]
     assert [p.name for p in slot.parent.iterdir()] == [slot.name]  # no staging dir left
-    assert custom_icons.get_custom_icon_preview_url(hass).startswith(f"{path}favicon-48x48.ico?v=")
+    assert custom_icons.get_custom_icon_preview_url(hass).startswith("/api/ha-favicon-changer/custom/favicon-48x48.ico?v=")
 
 
 async def test_render_escapes_title_and_swaps_icons(tmp_path, monkeypatch):

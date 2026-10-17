@@ -127,8 +127,8 @@ async def test_upload_activates_custom_icon(hass: HomeAssistant, entry, hass_cli
     await hass.async_block_till_done()
     assert payload["icon_source"] == "custom"
     assert payload["title"] == "Casa"
-    assert entry.options["custom_icon_path"] == "/api/ha-favicon-changer/custom/current/"
-    assert frontend.MANIFEST_JSON["icons"][0]["src"].startswith("/api/ha-favicon-changer/custom/current/favicon-128x128.png")
+    assert entry.options["custom_icon_path"] == "/api/ha-favicon-changer/custom/"
+    assert frontend.MANIFEST_JSON["icons"][0]["src"].startswith("/api/ha-favicon-changer/custom/favicon-128x128.png")
 
     # Switching away and back to the stored upload works without re-uploading.
     await client.post(CONFIG_URL, json={"source": "preset", "icon_preset": "beta"})
@@ -147,7 +147,6 @@ async def test_upload_rejects_bad_files(hass: HomeAssistant, entry, hass_client)
     client = await hass_client()
     cases = [
         (_upload_form(b"junk"), 400, "Upload a PNG, ICO, WebP, GIF, or JPEG icon."),
-        (_upload_form(_png(128), filename="icon.gif"), 400, "File extension does not match the icon data."),
         (_upload_form(b"\0" * (1024 * 1024 + 1)), 413, "Icon is larger than 1 MiB."),
         (aiohttp.FormData({"title": "only a title"}, default_to_multipart=True), 400, "Choose a PNG, ICO, WebP, GIF, or JPEG file to upload."),
     ]

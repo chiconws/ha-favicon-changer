@@ -40,10 +40,7 @@ class HaFaviconChangerPanel extends HTMLElement {
       this._data = await this._hass.callApi("GET", "ha-favicon-changer/config");
       this._draftTitle = this._data.title || "";
       this._selectedSource = this._data.icon_source || "preset";
-      this._selectedPreset =
-        this._data.icon_preset ||
-        (this._data.presets && this._data.presets[0] && this._data.presets[0].id) ||
-        "";
+      this._selectedPreset = this._data.icon_preset || this._data.presets?.[0]?.id || "";
     } catch (err) {
       this._error = this._messageFromError(err);
     } finally {
@@ -53,19 +50,7 @@ class HaFaviconChangerPanel extends HTMLElement {
   }
 
   _messageFromError(err) {
-    if (!err) {
-      return "Unexpected error.";
-    }
-    if (typeof err === "string") {
-      return err;
-    }
-    if (err.body && err.body.error) {
-      return err.body.error;
-    }
-    if (err.message) {
-      return err.message;
-    }
-    return "Unexpected error.";
+    return err?.body?.error || err?.message || (typeof err === "string" && err) || "Unexpected error.";
   }
 
   _escape(value) {
@@ -76,13 +61,9 @@ class HaFaviconChangerPanel extends HTMLElement {
       .replace(/"/g, "&quot;");
   }
 
-  _titleValue() {
-    const input = this.shadowRoot.querySelector("#title");
-    return input ? input.value : this._draftTitle;
-  }
-
   _captureTitle() {
-    this._draftTitle = this._titleValue();
+    const input = this.shadowRoot.querySelector("#title");
+    this._draftTitle = input ? input.value : this._draftTitle;
     return this._draftTitle;
   }
 
@@ -153,25 +134,6 @@ class HaFaviconChangerPanel extends HTMLElement {
       return;
     }
 
-    const { max_bytes: maxBytes, accepted_types: acceptedTypes, accepted_extensions: acceptedExtensions } =
-      this._data.limits;
-    const filename = file.name.toLowerCase();
-    const extensionOk = acceptedExtensions.some((extension) => filename.endsWith(extension));
-    const typeOk = !file.type || acceptedTypes.includes(file.type);
-
-    if (!extensionOk || !typeOk) {
-      this._error = "Choose a PNG, ICO, WebP, GIF, or JPEG file.";
-      event.target.value = "";
-      this._render();
-      return;
-    }
-    if (file.size > maxBytes) {
-      this._error = "Icon is larger than 1 MiB.";
-      event.target.value = "";
-      this._render();
-      return;
-    }
-
     this._selectedSource = "upload";
     this._uploadFile = file;
     this._uploadPreviewUrl = URL.createObjectURL(file);
@@ -194,14 +156,7 @@ class HaFaviconChangerPanel extends HTMLElement {
         source,
         icon_preset: source === "preset" ? this._selectedPreset : "",
       };
-      this._data = await this._hass.callApi("POST", "ha-favicon-changer/config", payload);
-      this._draftTitle = this._data.title || "";
-      this._selectedSource = this._data.icon_source || source;
-      this._selectedPreset =
-        this._data.icon_preset ||
-        (this._data.presets && this._data.presets[0] && this._data.presets[0].id) ||
-        "";
-      this._clearUploadSelection();
+      await this._hass.callApi("POST", "ha-favicon-changer/config", payload);
       this._refreshPage();
     } catch (err) {
       this._error = this._messageFromError(err);
@@ -233,12 +188,6 @@ class HaFaviconChangerPanel extends HTMLElement {
       if (!response.ok) {
         throw new Error(body.error || "Upload failed.");
       }
-      this._data = body;
-      this._draftTitle = this._data.title || "";
-      this._selectedSource = "custom";
-      this._selectedPreset =
-        (this._data.presets && this._data.presets[0] && this._data.presets[0].id) || "";
-      this._clearUploadSelection();
       this._refreshPage();
     } catch (err) {
       this._error = this._messageFromError(err);

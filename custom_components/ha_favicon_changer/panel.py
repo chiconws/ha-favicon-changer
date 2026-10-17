@@ -18,7 +18,7 @@ from .const import (
     CONF_CUSTOM_ICON_PATH,
     CONF_ICON_PRESET,
     CONF_TITLE,
-    CUSTOM_ICON_PUBLIC_ROOT,
+    CUSTOM_ICON_PUBLIC_PATH,
     DOMAIN,
     INTEGRATION_TITLE,
     MAX_TITLE_LENGTH,
@@ -33,7 +33,6 @@ from .custom_icons import (
     CustomIconError,
     get_custom_icon_file_path,
     get_custom_icon_preview_url,
-    get_custom_icon_public_path,
     save_custom_icon,
 )
 from .presets import get_preset_file_path, load_preset_catalog
@@ -57,10 +56,7 @@ def _json_error(message: str, status: int = 400) -> web.Response:
 
 
 def _config_entry(hass: HomeAssistant) -> ConfigEntry | None:
-    entries = hass.config_entries.async_entries(DOMAIN)
-    if not entries:
-        return None
-    return entries[0]
+    return next(iter(hass.config_entries.async_entries(DOMAIN)), None)
 
 
 def _validate_title(value: Any) -> str:
@@ -93,7 +89,6 @@ async def async_panel_payload(hass: HomeAssistant) -> dict[str, Any]:
         "icon_preset": "" if custom_active else icon_preset,
         "custom_icon_url": custom_preview_url,
         "limits": {
-            "max_bytes": MAX_UPLOAD_BYTES,
             "accepted_types": list(SUPPORTED_CONTENT_TYPES),
             "accepted_extensions": list(SUPPORTED_EXTENSIONS),
         },
@@ -117,12 +112,12 @@ async def _async_update_entry_options(
     *,
     title: str,
     icon_preset: str,
-    custom_icon_path: str | None,
 ) -> None:
+    """Save the selection; an empty preset means the custom icon is active."""
     options = dict(config_entry.options)
     options[CONF_TITLE] = title
     options[CONF_ICON_PRESET] = icon_preset
-    options[CONF_CUSTOM_ICON_PATH] = custom_icon_path or ""
+    options[CONF_CUSTOM_ICON_PATH] = "" if icon_preset else CUSTOM_ICON_PUBLIC_PATH
     hass.config_entries.async_update_entry(config_entry, options=options)
 
 
@@ -177,7 +172,6 @@ class FaviconPanelConfigView(HomeAssistantView):
                 config_entry,
                 title=title,
                 icon_preset="",
-                custom_icon_path=get_custom_icon_public_path(),
             )
             return web.json_response(await async_panel_payload(hass))
 
@@ -195,7 +189,6 @@ class FaviconPanelConfigView(HomeAssistantView):
             config_entry,
             title=title,
             icon_preset=icon_preset,
-            custom_icon_path=None,
         )
         return web.json_response(await async_panel_payload(hass))
 
@@ -220,8 +213,6 @@ class FaviconPanelUploadView(HomeAssistantView):
         if not request.content_type.startswith("multipart/"):
             return _json_error("Upload must use multipart form data.")
 
-        filename: str | None = None
-        content_type: str | None = None
         content = b""
         title_from_form: str | None = None
 
@@ -235,8 +226,6 @@ class FaviconPanelUploadView(HomeAssistantView):
                     continue
                 if field.name != "file":
                     continue
-                filename = field.filename
-                content_type = field.headers.get("Content-Type")
                 chunks: list[bytes] = []
                 total = 0
                 while chunk := await field.read_chunk():
@@ -257,13 +246,7 @@ class FaviconPanelUploadView(HomeAssistantView):
                 if title_from_form is not None
                 else entry_values(config_entry).get(CONF_TITLE)
             )
-            custom_path = await hass.async_add_executor_job(
-                save_custom_icon,
-                hass,
-                filename,
-                content_type,
-                content,
-            )
+            await hass.async_add_executor_job(save_custom_icon, hass, content)
         except (CustomIconError, ValueError) as err:
             return _json_error(str(err))
 
@@ -272,7 +255,6 @@ class FaviconPanelUploadView(HomeAssistantView):
             config_entry,
             title=title,
             icon_preset="",
-            custom_icon_path=custom_path,
         )
         return web.json_response(await async_panel_payload(hass))
 
@@ -280,20 +262,17 @@ class FaviconPanelUploadView(HomeAssistantView):
 class CustomIconView(HomeAssistantView):
     """Serve custom uploaded favicon assets."""
 
-    url = f"{CUSTOM_ICON_PUBLIC_ROOT}/{{slot}}/{{filename}}"
+    url = f"{CUSTOM_ICON_PUBLIC_PATH}{{filename}}"
     name = "api:ha-favicon-changer:custom-icon"
     requires_auth = False
 
     def __init__(self, hass: HomeAssistant) -> None:
         self.hass = hass
 
-    async def get(self, request: web.Request, slot: str, filename: str) -> web.FileResponse:
+    async def get(self, request: web.Request, filename: str) -> web.FileResponse:
         del request
         file_path = await self.hass.async_add_executor_job(
-            get_custom_icon_file_path,
-            self.hass,
-            slot,
-            filename,
+            get_custom_icon_file_path, self.hass, filename
         )
         if file_path is None:
             raise web.HTTPNotFound()

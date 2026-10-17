@@ -9,10 +9,10 @@ import homeassistant.components.frontend as frontend
 import pytest
 from PIL import Image
 
-integration = importlib.import_module("custom_components.ha-favicon-changer")
-custom_icons = importlib.import_module("custom_components.ha-favicon-changer.custom_icons")
-presets = importlib.import_module("custom_components.ha-favicon-changer.presets")
-PRESET_PUBLIC_ROOT = importlib.import_module("custom_components.ha-favicon-changer.const").PRESET_PUBLIC_ROOT
+integration = importlib.import_module("custom_components.ha_favicon_changer")
+custom_icons = importlib.import_module("custom_components.ha_favicon_changer.custom_icons")
+presets = importlib.import_module("custom_components.ha_favicon_changer.presets")
+PRESET_PUBLIC_ROOT = importlib.import_module("custom_components.ha_favicon_changer.const").PRESET_PUBLIC_ROOT
 
 
 def _image(fmt: str, size: tuple[int, int], **kwargs) -> bytes:

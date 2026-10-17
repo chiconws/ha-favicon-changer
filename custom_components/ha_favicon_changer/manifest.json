@@ -1,5 +1,5 @@
 {
-  "domain": "ha-favicon-changer",
+  "domain": "ha_favicon_changer",
   "name": "Favicon Changer",
   "codeowners": ["@chiconws"],
   "config_flow": true,

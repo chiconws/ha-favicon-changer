@@ -31,7 +31,7 @@ jobs:
         run: python -m pip install -r requirements_test.txt
 
       - name: Run Ruff
-        run: python -m ruff check custom_components/ha_favicon_changer tests
+        run: python -m ruff check custom_components/favicon_changer tests
 
       - name: Run tests with branch coverage
         run: |

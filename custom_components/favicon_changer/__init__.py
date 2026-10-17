@@ -41,7 +41,7 @@ mimetypes.add_type("image/webp", ".webp")
 DATA_GET_TEMPLATE = "get_template"
 DATA_MANIFEST = "manifest"
 _MANIFEST_KEYS = ("icons", "name", "short_name")
-_TEMPLATE_BASE_RENDER_ATTR = "_ha_favicon_changer_base_render"
+_TEMPLATE_BASE_RENDER_ATTR = "_favicon_changer_base_render"
 
 
 def _ensure_domain_data(hass: HomeAssistant) -> dict[str, Any]:

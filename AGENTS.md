@@ -1,6 +1,6 @@
 # Agent Notes: Favicon Changer
 
-Standard: ha-standards v0.5.2   <!-- /home/raphael/dev/ha-standards/STANDARD.md -->
+Standard: ha-standards v0.5.2
 
 Language: README in **English**; code, logs and `strings.json` in English; translations en + pt-BR.
 

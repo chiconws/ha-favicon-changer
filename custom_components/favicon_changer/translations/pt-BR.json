@@ -1,6 +1,11 @@
 {
   "title": "Favicon Changer",
   "config": {
+    "step": {
+      "user": {
+        "title": "Favicon Changer"
+      }
+    },
     "abort": {
       "no_presets_available": "Nenhum preset de ícone incluído está disponível."
     }

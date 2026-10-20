@@ -7,6 +7,7 @@
   "config_flow": true,
   "dependencies": [
     "frontend",
+    "http",
     "panel_custom"
   ],
   "documentation": "https://github.com/chiconws/ha-favicon-changer",
@@ -15,5 +16,5 @@
   "issue_tracker": "https://github.com/chiconws/ha-favicon-changer/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "4.0.0"
+  "version": "4.1.0"
 }

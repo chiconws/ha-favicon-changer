@@ -1,6 +1,6 @@
 # Agent Notes: Favicon Changer
 
-Standard: ha-standards v0.5.2   <!-- /home/raphael/dev/ha-standards/STANDARD.md -->
+Standard: ha-standards v0.5.2
 
 Language: README in **English**; code, logs and `strings.json` in English; translations en + pt-BR.
 
@@ -15,9 +15,9 @@ Single config entry.
 All code in `custom_components/favicon_changer/`.
 
 - `__init__.py`: saves the pristine `frontend.IndexView.get_template` and manifest keys in `hass.data[DOMAIN]`, wraps the template to inject title/icons, restores everything on unload; `find_icons` maps icon files to URLs.
-- `panel.py`: sidebar panel registration and admin-only views (config, upload, preset and custom icon files).
+- `panel.py`: sidebar panel registration, admin-only config and upload views, custom icon files; panel JS and presets served as static paths.
 - `custom_icons.py`: upload validation (format, size, square) and atomic save via a staging dir.
-- `presets.py` + `presets/`: shipped icon presets, discovered from folders.
+- `preset_catalog.py` + `presets/`: shipped icon presets, discovered from folders.
 - `config_flow.py`: title + preset; `diagnostics.py`: config and current custom icon.
 - `frontend/`: the panel JS.
 

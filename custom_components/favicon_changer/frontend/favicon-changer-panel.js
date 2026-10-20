@@ -141,7 +141,7 @@ class HaFaviconChangerPanel extends HTMLElement {
   }
 
   async _applySelection() {
-    if (!this._data?.writable || this._saving) {
+    if (!this._data || this._saving) {
       return;
     }
     const title = this._captureTitle();
@@ -167,7 +167,7 @@ class HaFaviconChangerPanel extends HTMLElement {
   }
 
   async _uploadAndApply() {
-    if (!this._uploadFile || !this._data?.writable || this._saving) {
+    if (!this._uploadFile || !this._data || this._saving) {
       return;
     }
     const title = this._captureTitle();
@@ -223,8 +223,8 @@ class HaFaviconChangerPanel extends HTMLElement {
     const previewUrl = this._previewUrl();
     const previewTitle = this._previewTitle();
     const canApplyPreset =
-      this._data.writable && this._selectedSource !== "upload" && !this._saving;
-    const canUpload = this._data.writable && this._uploadFile && !this._saving;
+      this._selectedSource !== "upload" && !this._saving;
+    const canUpload = this._uploadFile && !this._saving;
     const { accepted_extensions: extensions, accepted_types: types } = this._data.limits;
     const uploadAccept = [...extensions, ...types].join(",");
 
@@ -243,11 +243,6 @@ class HaFaviconChangerPanel extends HTMLElement {
         </header>
 
         ${this._error ? `<div class="error">${this._escape(this._error)}</div>` : ""}
-        ${
-          this._data.writable
-            ? ""
-            : '<div class="error">Create the integration from Settings before saving changes here.</div>'
-        }
 
         <section class="toolbar">
           <label class="field">

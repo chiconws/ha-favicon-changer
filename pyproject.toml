@@ -38,6 +38,8 @@ venvPath = "."
 venv = ".venv"
 pythonVersion = "3.14"
 include = ["custom_components", "tests"]
+# Local editor tooling (gitignored), run from its own venv.
+ignore = [".vscode"]
 # HA entities override cached_property attributes with properties by design.
 reportIncompatibleVariableOverride = false
 reportIncompatibleMethodOverride = false

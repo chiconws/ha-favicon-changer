@@ -3,12 +3,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Favicon Changer",
-        "description": "Defina o título da página e escolha um preset de ícone.",
-        "data": {
-          "title": "Título da página",
-          "icon_preset": "Preset de ícone"
-        }
+        "title": "Favicon Changer"
       }
     },
     "abort": {

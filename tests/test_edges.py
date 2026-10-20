@@ -10,7 +10,7 @@ from PIL import Image
 
 integration = importlib.import_module("custom_components.favicon_changer")
 custom_icons = importlib.import_module("custom_components.favicon_changer.custom_icons")
-presets = importlib.import_module("custom_components.favicon_changer.presets")
+presets = importlib.import_module("custom_components.favicon_changer.preset_catalog")
 
 
 def _png(size: tuple[int, int]) -> bytes:

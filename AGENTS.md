@@ -17,7 +17,7 @@ All code in `custom_components/favicon_changer/`.
 - `__init__.py`: saves the pristine `frontend.IndexView.get_template` and manifest keys in `hass.data[DOMAIN]`, wraps the template to inject title/icons, restores everything on unload; `find_icons` maps icon files to URLs.
 - `panel.py`: sidebar panel registration and admin-only views (config, upload, preset and custom icon files).
 - `custom_icons.py`: upload validation (format, size, square) and atomic save via a staging dir.
-- `presets.py` + `presets/`: shipped icon presets, discovered from folders.
+- `preset_catalog.py` + `presets/`: shipped icon presets, discovered from folders.
 - `config_flow.py`: title + preset; `diagnostics.py`: config and current custom icon.
 - `frontend/`: the panel JS.
 

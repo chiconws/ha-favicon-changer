@@ -35,7 +35,7 @@ from .custom_icons import (
     get_custom_icon_preview_url,
     save_custom_icon,
 )
-from .presets import get_preset_file_path, load_preset_catalog
+from .preset_catalog import get_preset_file_path, load_preset_catalog
 
 PANEL_COMPONENT_NAME = "ha-favicon-changer-panel"
 PANEL_FRONTEND_URL_PATH = "ha-favicon-changer"

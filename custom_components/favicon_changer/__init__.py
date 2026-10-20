@@ -29,7 +29,7 @@ from .const import (
 )
 from .custom_icons import custom_icon_dir
 from .panel import async_register_favicon_panel, async_remove_favicon_panel
-from .presets import PRESETS_PATH
+from .preset_catalog import PRESETS_PATH
 
 _LOGGER = logging.getLogger(__name__)
 

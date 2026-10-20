@@ -24,7 +24,7 @@ from .const import (
     MAX_TITLE_LENGTH,
     clean_string,
 )
-from .presets import load_preset_catalog
+from .preset_catalog import load_preset_catalog
 
 _LOGGER = logging.getLogger(__name__)
 

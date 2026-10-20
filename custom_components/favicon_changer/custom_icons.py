@@ -84,22 +84,11 @@ def get_custom_icon_preview_url(hass: HomeAssistant) -> str | None:
     if not slot_dir.is_dir():
         return None
 
-    sized = [
-        (int(match.group(1)), entry)
-        for entry in slot_dir.iterdir()
-        if entry.is_file() and (match := _SIZED_ICON_RE.match(entry.name))
-    ]
-    candidates = [entry for _, entry in sorted(sized, key=lambda item: item[0], reverse=True)]
-    candidates += [slot_dir / "favicon-apple-180x180.png", slot_dir / "favicon.ico"]
-
-    for candidate in candidates:
-        try:
-            version = candidate.stat().st_mtime_ns
-        except OSError:
-            continue
-        return f"{CUSTOM_ICON_PUBLIC_PATH}{candidate.name}?v={version}"
-
-    return None
+    # save_custom_icon writes exactly one sized file per upload, whatever the format.
+    sized = next((entry for entry in slot_dir.iterdir() if _SIZED_ICON_RE.match(entry.name)), None)
+    if sized is None:
+        return None
+    return f"{CUSTOM_ICON_PUBLIC_PATH}{sized.name}?v={sized.stat().st_mtime_ns}"
 
 
 def _identify_icon(content: bytes) -> UploadedIcon:

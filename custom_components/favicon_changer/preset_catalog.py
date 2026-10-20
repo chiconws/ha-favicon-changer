@@ -37,10 +37,6 @@ def _display_name_from_id(preset_id: str) -> str:
 
 def load_preset_catalog() -> tuple[PresetInfo, ...]:
     """Discover preset metadata from the shipped preset folders."""
-    if not PRESETS_PATH.is_dir():
-        _LOGGER.warning("Preset root does not exist: %s", PRESETS_PATH)
-        return ()
-
     catalog: list[PresetInfo] = []
     for preset_dir in PRESETS_PATH.iterdir():
         if not preset_dir.is_dir():
@@ -66,13 +62,3 @@ def load_preset_catalog() -> tuple[PresetInfo, ...]:
     catalog.sort(key=lambda item: item["name"].lower())
     return tuple(catalog)
 
-
-def get_preset_file_path(preset_id: str, filename: str) -> Path | None:
-    """Return the on-disk file path for a preset asset."""
-    if Path(preset_id).name != preset_id or Path(filename).name != filename:
-        return None
-    if preset_id not in {preset["id"] for preset in load_preset_catalog()}:
-        return None
-
-    file_path = PRESETS_PATH / preset_id / filename
-    return file_path if file_path.is_file() else None

@@ -48,14 +48,9 @@ Change the browser title, favicon and web app icons of your Home Assistant, from
 [![Open your Home Assistant instance and start setting up Favicon Changer.][badge-my-config]][link-my-config]
 
 1. Go to **Settings → Devices & services → Add integration**.
-2. Search for **Favicon Changer** and follow the setup steps.
+2. Search for **Favicon Changer** and add it. Nothing changes until you pick a title or icon.
 
-| Field | Description |
-| --- | --- |
-| Page title | Optional; replaces "Home Assistant" in the browser tab |
-| Icon preset | One of the shipped presets |
-
-Change both later from the **Favicon Changer** sidebar panel. Refresh the browser after saving.
+Set the page title and icon from the **Favicon Changer** sidebar panel. Refresh the browser after saving.
 
 ## Favicon Panel
 

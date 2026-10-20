@@ -7,10 +7,9 @@ from unittest.mock import patch
 
 import aiohttp
 import homeassistant.components.frontend as frontend
-import pytest
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResultType, InvalidData
+from homeassistant.data_entry_flow import FlowResultType
 from PIL import Image
 from pytest_homeassistant_custom_component.common import CLIENT_ID
 
@@ -58,16 +57,8 @@ async def test_config_flow_creates_entry(hass: HomeAssistant, http):
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
-    assert result["type"] is FlowResultType.FORM
-    for bad_input in ({"icon_preset": "nope"}, {"title": "x" * 121, "icon_preset": "beta"}):
-        with pytest.raises(InvalidData):
-            await hass.config_entries.flow.async_configure(result["flow_id"], bad_input)
-
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {"title": "  Casa  ", "icon_preset": "beta"}
-    )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["data"] == {"title": "Casa", "icon_preset": "beta", "custom_icon_path": ""}
+    assert result["data"] == {"title": "", "icon_preset": "", "custom_icon_path": ""}
 
 
 async def test_config_flow_aborts_without_presets(hass: HomeAssistant, http):

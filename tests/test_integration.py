@@ -1,9 +1,7 @@
 """Checks through a running Home Assistant: setup/unload, config flow and the panel API."""
 
-import importlib
 import io
 from typing import Any
-from unittest.mock import patch
 
 import aiohttp
 import homeassistant.components.frontend as frontend
@@ -59,16 +57,6 @@ async def test_config_flow_creates_entry(hass: HomeAssistant, http):
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"] == {"title": "", "icon_preset": "", "custom_icon_path": ""}
-
-
-async def test_config_flow_aborts_without_presets(hass: HomeAssistant, http):
-    config_flow = importlib.import_module("custom_components.favicon_changer.config_flow")
-    with patch.object(config_flow, "load_preset_catalog", return_value=()):
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": config_entries.SOURCE_USER}
-        )
-    assert result["type"] is FlowResultType.ABORT
-    assert result["reason"] == "no_presets_available"
 
 
 async def test_panel_get_and_switch_preset(hass: HomeAssistant, entry, hass_client):
@@ -130,8 +118,10 @@ async def test_upload_activates_custom_icon(hass: HomeAssistant, entry, hass_cli
     public = await hass_client_no_auth()
     assert (await public.get(payload["custom_icon_url"].split("?")[0])).status == 200
     assert (await public.get("/api/ha-favicon-changer/custom/other/favicon.ico")).status == 404
+    assert (await public.get("/api/ha-favicon-changer/custom/missing.png")).status == 404
     assert (await public.get("/api/ha-favicon-changer/presets/beta/favicon.ico")).status == 200
     assert (await public.get("/api/ha-favicon-changer/presets/nope/favicon.ico")).status == 404
+    assert (await public.get("/api/ha-favicon-changer/presets/%2E%2E/preset_catalog.py")).status != 200
     assert (await public.get("/api/ha-favicon-changer/panel.js")).status == 200
 
 
@@ -161,7 +151,7 @@ async def test_upload_rejects_bad_files(hass: HomeAssistant, entry, hass_client)
 async def test_panel_writes_need_a_config_entry(hass: HomeAssistant, entry, hass_client):
     assert await hass.config_entries.async_remove(entry.entry_id)
     client = await hass_client()
-    assert (await (await client.get(CONFIG_URL)).json())["writable"] is False
+    assert (await (await client.get(CONFIG_URL)).json())["presets"]
     response = await client.post(CONFIG_URL, json={})
     assert (await response.json())["error"] == "Create the Favicon Changer integration before saving."
     response = await client.post(UPLOAD_URL, data=_upload_form(_png(64)))

@@ -22,7 +22,6 @@ from .const import (
     CONF_TITLE,
     CUSTOM_ICON_PUBLIC_PATH,
     DOMAIN,
-    INTEGRATION_TITLE,
     PRESET_PUBLIC_ROOT,
     clean_string,
     entry_values,
@@ -35,8 +34,6 @@ _LOGGER = logging.getLogger(__name__)
 
 _RE_APPLE = re.compile(r"^favicon-apple-", re.IGNORECASE)
 _RE_ICON = re.compile(r"^favicon-(\d+x\d+)\.([a-z0-9]+)$", re.IGNORECASE)
-# Python < 3.13 only knows .webp when the OS ships a mime.types file.
-mimetypes.add_type("image/webp", ".webp")
 
 DATA_GET_TEMPLATE = "get_template"
 DATA_MANIFEST = "manifest"
@@ -56,9 +53,6 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     """Set up integration from a config entry."""
     _ensure_domain_data(hass)
     _LOGGER.info("Setting up config entry %s", config_entry.entry_id)
-
-    if not config_entry.title or config_entry.title == "Favicon":
-        hass.config_entries.async_update_entry(config_entry, title=INTEGRATION_TITLE)
 
     config_entry.async_on_unload(config_entry.add_update_listener(_update_listener))
     await async_register_favicon_panel(hass)

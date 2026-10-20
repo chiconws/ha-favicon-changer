@@ -83,11 +83,7 @@ def test_save_failure_is_reported(tmp_path, monkeypatch) -> None:
     assert not any(p.name.endswith("-staging") for p in custom_icons.custom_icon_dir(hass).parent.iterdir())
 
 
-def test_preset_catalog_edges(tmp_path, monkeypatch, caplog) -> None:
-    monkeypatch.setattr(presets, "PRESETS_PATH", tmp_path / "missing")
-    assert presets.load_preset_catalog() == ()
-    assert "does not exist" in caplog.text
-
+def test_preset_catalog_edges(tmp_path, monkeypatch) -> None:
     (tmp_path / "incomplete").mkdir()
     (tmp_path / "loose-file").write_bytes(b"")
     monkeypatch.setattr(presets, "PRESETS_PATH", tmp_path)

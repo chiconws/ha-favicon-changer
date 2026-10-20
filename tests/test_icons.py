@@ -61,13 +61,6 @@ def test_find_icons_reads_shipped_preset():
     assert {item["type"] for item in icons["manifest"]} == {"image/png"}
 
 
-def test_preset_file_path_rejects_traversal():
-    preset_id = presets.load_preset_catalog()[0]["id"]
-    assert presets.get_preset_file_path(preset_id, "favicon.ico") is not None
-    assert presets.get_preset_file_path("..", "manifest.json") is None
-    assert presets.get_preset_file_path(preset_id, "../__init__.py") is None
-
-
 def test_display_names():
     assert presets._display_name_from_id("poc-pride") == "POC Pride"
     assert presets._display_name_from_id("fire-orange") == "Fire Orange"

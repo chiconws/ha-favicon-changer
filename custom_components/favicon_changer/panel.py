@@ -9,6 +9,7 @@ from typing import Any
 from aiohttp import web
 from aiohttp.multipart import BodyPartReader
 from homeassistant.components import frontend, panel_custom
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import Unauthorized
@@ -35,7 +36,7 @@ from .custom_icons import (
     get_custom_icon_preview_url,
     save_custom_icon,
 )
-from .preset_catalog import get_preset_file_path, load_preset_catalog
+from .preset_catalog import PRESETS_PATH, load_preset_catalog
 
 PANEL_COMPONENT_NAME = "ha-favicon-changer-panel"
 PANEL_FRONTEND_URL_PATH = "ha-favicon-changer"
@@ -83,7 +84,6 @@ async def async_panel_payload(hass: HomeAssistant) -> dict[str, Any]:
     custom_active = bool(custom_icon_path and custom_preview_url)
 
     return {
-        "writable": config_entry is not None,
         "title": title,
         "icon_source": "custom" if custom_active else "preset",
         "icon_preset": "" if custom_active else icon_preset,
@@ -121,18 +121,6 @@ async def _async_update_entry_options(
     hass.config_entries.async_update_entry(config_entry, options=options)
 
 
-class FaviconPanelModuleView(HomeAssistantView):
-    """Serve the frontend module for the favicon panel."""
-
-    url = PANEL_MODULE_URL
-    name = "api:ha-favicon-changer:panel-module"
-    requires_auth = False
-
-    async def get(self, request: web.Request) -> web.FileResponse:
-        del request
-        return web.FileResponse(PANEL_MODULE_PATH)
-
-
 class FaviconPanelConfigView(HomeAssistantView):
     """Expose preset metadata and save the active favicon selection."""
 
@@ -167,22 +155,14 @@ class FaviconPanelConfigView(HomeAssistantView):
         if source == "custom":
             if await hass.async_add_executor_job(get_custom_icon_preview_url, hass) is None:
                 return _json_error("Upload a custom icon before selecting it.")
-            await _async_update_entry_options(
-                hass,
-                config_entry,
-                title=title,
-                icon_preset="",
-            )
-            return web.json_response(await async_panel_payload(hass))
-
-        if source != "preset":
+            icon_preset = ""
+        elif source == "preset":
+            icon_preset = clean_string(body.get(CONF_ICON_PRESET)) or ""
+            catalog = await hass.async_add_executor_job(load_preset_catalog)
+            if icon_preset not in {preset["id"] for preset in catalog}:
+                return _json_error("Choose a valid icon preset.")
+        else:
             return _json_error("Unknown icon source.")
-
-        icon_preset = clean_string(body.get(CONF_ICON_PRESET)) or ""
-        catalog = await hass.async_add_executor_job(load_preset_catalog)
-        valid_preset_ids = {preset["id"] for preset in catalog}
-        if icon_preset not in valid_preset_ids:
-            return _json_error("Choose a valid icon preset.")
 
         await _async_update_entry_options(
             hass,
@@ -266,55 +246,37 @@ class CustomIconView(HomeAssistantView):
     name = "api:ha-favicon-changer:custom-icon"
     requires_auth = False
 
-    def __init__(self, hass: HomeAssistant) -> None:
-        self.hass = hass
-
     async def get(self, request: web.Request, filename: str) -> web.FileResponse:
-        del request
-        file_path = await self.hass.async_add_executor_job(
-            get_custom_icon_file_path, self.hass, filename
+        hass: HomeAssistant = request.app["hass"]
+        file_path = await hass.async_add_executor_job(
+            get_custom_icon_file_path, hass, filename
         )
         if file_path is None:
             raise web.HTTPNotFound()
         return web.FileResponse(file_path)
 
 
-class PresetIconView(HomeAssistantView):
-    """Serve shipped favicon preset assets."""
-
-    url = f"{PRESET_PUBLIC_ROOT}/{{preset_id}}/{{filename}}"
-    name = "api:ha-favicon-changer:presets"
-    requires_auth = False
-
-    def __init__(self, hass: HomeAssistant) -> None:
-        self.hass = hass
-
-    async def get(self, request: web.Request, preset_id: str, filename: str) -> web.FileResponse:
-        del request
-        file_path = await self.hass.async_add_executor_job(
-            get_preset_file_path, preset_id, filename
-        )
-        if file_path is None:
-            raise web.HTTPNotFound()
-        return web.FileResponse(file_path)
-
-
-def _register_panel_views(hass: HomeAssistant) -> None:
+async def _register_panel_views(hass: HomeAssistant) -> None:
     data = hass.data.setdefault(DOMAIN, {})
     if data.get(DATA_PANEL_VIEWS_REGISTERED):
         return
 
-    hass.http.register_view(FaviconPanelModuleView())
+    # Routes outlive the entry: aiohttp cannot unregister them, hence the flag.
+    data[DATA_PANEL_VIEWS_REGISTERED] = True
+    await hass.http.async_register_static_paths(
+        [
+            StaticPathConfig(PANEL_MODULE_URL, str(PANEL_MODULE_PATH), False),
+            StaticPathConfig(PRESET_PUBLIC_ROOT, str(PRESETS_PATH), False),
+        ]
+    )
     hass.http.register_view(FaviconPanelConfigView())
     hass.http.register_view(FaviconPanelUploadView())
-    hass.http.register_view(CustomIconView(hass))
-    hass.http.register_view(PresetIconView(hass))
-    data[DATA_PANEL_VIEWS_REGISTERED] = True
+    hass.http.register_view(CustomIconView())
 
 
 async def async_register_favicon_panel(hass: HomeAssistant) -> None:
     """Register the sidebar panel and its API views."""
-    _register_panel_views(hass)
+    await _register_panel_views(hass)
     data = hass.data.setdefault(DOMAIN, {})
     if data.get(DATA_PANEL_REGISTERED):
         return

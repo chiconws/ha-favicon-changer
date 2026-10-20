@@ -281,13 +281,15 @@ async def async_register_favicon_panel(hass: HomeAssistant) -> None:
     if data.get(DATA_PANEL_REGISTERED):
         return
 
+    # Version the module URL so browsers drop a cached panel after an update.
+    version = (await hass.async_add_executor_job(PANEL_MODULE_PATH.stat)).st_mtime_ns
     await panel_custom.async_register_panel(
         hass,
         frontend_url_path=PANEL_FRONTEND_URL_PATH,
         webcomponent_name=PANEL_COMPONENT_NAME,
         sidebar_title=INTEGRATION_TITLE,
         sidebar_icon="mdi:image-edit",
-        module_url=PANEL_MODULE_URL,
+        module_url=f"{PANEL_MODULE_URL}?v={version}",
         require_admin=True,
         config_panel_domain=DOMAIN,
     )

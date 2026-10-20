@@ -35,7 +35,8 @@ async def test_setup_applies_config_and_unload_restores(hass: HomeAssistant, ent
     assert frontend.MANIFEST_JSON["name"] == "My Home"
     assert frontend.MANIFEST_JSON["icons"][0]["src"].startswith("/api/ha-favicon-changer/presets/beta/")
     assert frontend.IndexView.get_template is not original_template
-    assert "ha-favicon-changer" in hass.data[frontend.DATA_PANELS]
+    panel = hass.data[frontend.DATA_PANELS]["ha-favicon-changer"]
+    assert panel.config and panel.config["_panel_custom"]["module_url"].startswith("/api/ha-favicon-changer/panel.js?v=")
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     assert frontend.MANIFEST_JSON["name"] == "Home Assistant"

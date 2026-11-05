@@ -5,8 +5,11 @@ import io
 from pathlib import Path
 from types import SimpleNamespace
 
-import pytest
 from PIL import Image
+import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from homeassistant.core import HomeAssistant
 
 integration = importlib.import_module("custom_components.favicon_changer")
 custom_icons = importlib.import_module("custom_components.favicon_changer.custom_icons")
@@ -20,15 +23,23 @@ def _png(size: tuple[int, int]) -> bytes:
 
 
 def _hass(tmp_path: Path):
-    return SimpleNamespace(config=SimpleNamespace(path=lambda *parts: str(tmp_path.joinpath(*parts))))
+    return SimpleNamespace(
+        config=SimpleNamespace(path=lambda *parts: str(tmp_path.joinpath(*parts)))
+    )
 
 
-def test_find_icons_unreadable_dir(tmp_path, caplog) -> None:
+def test_find_icons_unreadable_dir(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Test find icons unreadable dir."""
     assert integration.find_icons("/x/", tmp_path / "missing") == {}
     assert "Could not read icon directory" in caplog.text
 
 
-def test_find_icons_skips_junk_and_falls_back_to_manifest(tmp_path, caplog) -> None:
+def test_find_icons_skips_junk_and_falls_back_to_manifest(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Test find icons skips junk and falls back to manifest."""
     (tmp_path / "sub").mkdir()
     (tmp_path / "favicon-64x64.unknownext").write_bytes(b"x")
     (tmp_path / "favicon-192x192.png").write_bytes(b"x")
@@ -38,7 +49,10 @@ def test_find_icons_skips_junk_and_falls_back_to_manifest(tmp_path, caplog) -> N
     assert icons["favicon"].startswith("/x/favicon-32x32.png")
 
 
-def test_find_icons_empty_dir_warns(tmp_path, caplog) -> None:
+def test_find_icons_empty_dir_warns(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Test find icons empty dir warns."""
     assert integration.find_icons("/x/", tmp_path) == {}
     assert "No supported icon files" in caplog.text
 
@@ -55,18 +69,21 @@ def test_find_icons_empty_dir_warns(tmp_path, caplog) -> None:
     ],
 )
 def test_upload_rejected(content, message) -> None:
+    """Test upload rejected."""
     with pytest.raises(custom_icons.CustomIconError, match=message):
-        custom_icons._validate_uploaded_icon(content)
+        custom_icons._validate_uploaded_icon(content)  # noqa: SLF001
 
 
 def test_ico_without_square_entry_is_rejected() -> None:
+    """Test ico without square entry is rejected."""
     buffer = io.BytesIO()
     Image.new("RGBA", (64, 32)).save(buffer, "ICO", sizes=[(64, 32)])
     with pytest.raises(custom_icons.CustomIconError, match="square"):
-        custom_icons._validate_uploaded_icon(buffer.getvalue())
+        custom_icons._validate_uploaded_icon(buffer.getvalue())  # noqa: SLF001
 
 
-def test_custom_icon_paths(tmp_path) -> None:
+def test_custom_icon_paths(tmp_path: Path) -> None:
+    """Test custom icon paths."""
     hass = _hass(tmp_path)
     assert custom_icons.get_custom_icon_preview_url(hass) is None
     assert custom_icons.get_custom_icon_file_path(hass, "../secret") is None
@@ -75,15 +92,24 @@ def test_custom_icon_paths(tmp_path) -> None:
     assert custom_icons.get_custom_icon_file_path(hass, "favicon-64x64.png") is not None
 
 
-def test_save_failure_is_reported(tmp_path, monkeypatch) -> None:
+def test_save_failure_is_reported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test save failure is reported."""
     hass = _hass(tmp_path)
-    monkeypatch.setattr(Path, "rename", lambda self, target: (_ for _ in ()).throw(OSError("disk full")))
+    monkeypatch.setattr(
+        Path, "rename", lambda self, target: (_ for _ in ()).throw(OSError("disk full"))
+    )
     with pytest.raises(custom_icons.CustomIconError, match="disk full"):
         custom_icons.save_custom_icon(hass, _png((64, 64)))
-    assert not any(p.name.endswith("-staging") for p in custom_icons.custom_icon_dir(hass).parent.iterdir())
+    assert not any(
+        p.name.endswith("-staging")
+        for p in custom_icons.custom_icon_dir(hass).parent.iterdir()
+    )
 
 
-def test_preset_catalog_edges(tmp_path, monkeypatch) -> None:
+def test_preset_catalog_edges(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test preset catalog edges."""
     (tmp_path / "incomplete").mkdir()
     (tmp_path / "loose-file").write_bytes(b"")
     monkeypatch.setattr(presets, "PRESETS_PATH", tmp_path)
@@ -97,17 +123,23 @@ def test_preset_catalog_edges(tmp_path, monkeypatch) -> None:
         ("GIF", {}, {"favicon-64x64.gif"}),
     ],
 )
-def test_save_and_preview(tmp_path, fmt, kwargs, expected) -> None:
+def test_save_and_preview(tmp_path: Path, fmt, kwargs, expected) -> None:
+    """Test save and preview."""
     hass = _hass(tmp_path)
     buffer = io.BytesIO()
-    Image.new("RGBA" if fmt == "ICO" else "RGB", (64, 64) if fmt != "ICO" else (48, 48)).save(buffer, fmt, **kwargs)
+    Image.new(
+        "RGBA" if fmt == "ICO" else "RGB", (64, 64) if fmt != "ICO" else (48, 48)
+    ).save(buffer, fmt, **kwargs)
     custom_icons.save_custom_icon(hass, buffer.getvalue())
     assert {p.name for p in custom_icons.custom_icon_dir(hass).iterdir()} == expected
     preview = custom_icons.get_custom_icon_preview_url(hass)
     assert preview and preview.split("?")[0].rsplit("/", 1)[1] in expected
 
 
-async def test_diagnostics(hass, entry) -> None:
-    diagnostics = importlib.import_module("custom_components.favicon_changer.diagnostics")
+async def test_diagnostics(hass: HomeAssistant, entry: MockConfigEntry) -> None:
+    """Test diagnostics."""
+    diagnostics = importlib.import_module(
+        "custom_components.favicon_changer.diagnostics"
+    )
     diag = await diagnostics.async_get_config_entry_diagnostics(hass, entry)
     assert diag["config"]["title"] == "My Home" and diag["custom_icon"] is None

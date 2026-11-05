@@ -1,6 +1,6 @@
 # Favicon Changer
 
-[![HACS][badge-hacs]][link-hacs]
+[![Marketplace][badge-marketplace]][link-marketplace]
 [![GitHub Release][badge-release]][link-release]
 [![Home Assistant][badge-ha]][link-ha]
 [![GitHub Commit Activity][badge-commit-activity]][link-commits]
@@ -22,19 +22,22 @@ Change the browser title, favicon and web app icons of your Home Assistant, from
 
 ## Requirements
 
-- Home Assistant 2026.10 or newer
+- Home Assistant 2024.7 or newer
 - An admin user (the panel and its upload endpoint are admin-only)
 
 ## Installation
 
-### HACS (recommended)
+### Marketplace (recommended)
 
-[![Open your Home Assistant instance and open this repository in HACS.][badge-my-hacs]][link-my-hacs]
+[![Open your Home Assistant instance and open this repository in the Marketplace.][badge-my-marketplace]][link-my-marketplace]
 
-1. Click the button above, or open **HACS → ⋮ → Custom repositories** and add
-   `https://github.com/chiconws/ha-favicon-changer` with type **Integration**.
-2. Search for **Favicon Changer** in HACS and click **Download**.
+1. Click the button above. If Home Assistant asks, confirm adding the repository.
+2. Download **Favicon Changer** in **Settings → Marketplace**.
 3. Restart Home Assistant.
+
+On Home Assistant 2026.10 or older, install [HACS](https://hacs.xyz/) first, then use:
+[![Open your Home Assistant instance and open this repository in HACS.][badge-my-hacs]][link-my-hacs]
+Then download **Favicon Changer** in HACS and restart Home Assistant.
 
 ### Manual
 
@@ -82,13 +85,7 @@ logger:
 
 ## Development
 
-See [AGENTS.md](AGENTS.md) for the code structure. Quick checks:
-
-```bash
-uv venv --python 3.14 .venv && uv pip install -r requirements_test.txt
-python -m ruff check custom_components/favicon_changer tests
-python -m pytest
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks and tests, and [AGENTS.md](AGENTS.md) for the code structure.
 
 ## Credits
 
@@ -98,18 +95,19 @@ Maintained fork of [hass-favicon](https://github.com/thomasloven/hass-favicon) b
 
 MIT, see [LICENSE](LICENSE).
 
-[badge-hacs]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg
+[badge-marketplace]: https://img.shields.io/badge/Marketplace-Custom-41BDF5.svg
 [badge-release]: https://img.shields.io/github/v/release/chiconws/ha-favicon-changer
-[badge-ha]: https://img.shields.io/badge/Home%20Assistant-2026.10%2B-41BDF5?logo=home-assistant
+[badge-ha]: https://img.shields.io/badge/Home%20Assistant-2024.7%2B-41BDF5?logo=home-assistant
 [badge-commit-activity]: https://img.shields.io/github/commit-activity/m/chiconws/ha-favicon-changer
 [badge-hacs-validation]: https://github.com/chiconws/ha-favicon-changer/actions/workflows/hacs.yaml/badge.svg
 [badge-hassfest]: https://github.com/chiconws/ha-favicon-changer/actions/workflows/hassfest.yaml/badge.svg
 [badge-tests]: https://github.com/chiconws/ha-favicon-changer/actions/workflows/tests.yaml/badge.svg
 [badge-license]: https://img.shields.io/github/license/chiconws/ha-favicon-changer
+[badge-my-marketplace]: https://my.home-assistant.io/badges/marketplace_repository.svg
 [badge-my-hacs]: https://my.home-assistant.io/badges/hacs_repository.svg
 [badge-my-config]: https://my.home-assistant.io/badges/config_flow_start.svg
 
-[link-hacs]: https://hacs.xyz/
+[link-marketplace]: https://www.home-assistant.io/integrations/marketplace/
 [link-release]: https://github.com/chiconws/ha-favicon-changer/releases/latest
 [link-ha]: https://www.home-assistant.io/
 [link-commits]: https://github.com/chiconws/ha-favicon-changer/commits/main
@@ -117,5 +115,6 @@ MIT, see [LICENSE](LICENSE).
 [link-hassfest]: https://github.com/chiconws/ha-favicon-changer/actions/workflows/hassfest.yaml
 [link-tests]: https://github.com/chiconws/ha-favicon-changer/actions/workflows/tests.yaml
 [link-license]: LICENSE
+[link-my-marketplace]: https://my.home-assistant.io/redirect/marketplace_repository/?owner=chiconws&repository=ha-favicon-changer&category=integration
 [link-my-hacs]: https://my.home-assistant.io/redirect/hacs_repository/?owner=chiconws&repository=ha-favicon-changer&category=integration
 [link-my-config]: https://my.home-assistant.io/redirect/config_flow_start/?domain=favicon_changer

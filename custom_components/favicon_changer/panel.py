@@ -1,13 +1,12 @@
 """Home Assistant panel and API views for favicon selection."""
 
-from __future__ import annotations
-
 import json
 from pathlib import Path
 from typing import Any
 
 from aiohttp import web
 from aiohttp.multipart import BodyPartReader
+
 from homeassistant.components import frontend, panel_custom
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
@@ -41,7 +40,9 @@ from .preset_catalog import PRESETS_PATH, load_preset_catalog
 PANEL_COMPONENT_NAME = "ha-favicon-changer-panel"
 PANEL_FRONTEND_URL_PATH = "ha-favicon-changer"
 PANEL_MODULE_URL = "/api/ha-favicon-changer/panel.js"
-PANEL_MODULE_PATH = Path(__file__).resolve().parent / "frontend" / "favicon-changer-panel.js"
+PANEL_MODULE_PATH = (
+    Path(__file__).resolve().parent / "frontend" / "favicon-changer-panel.js"
+)
 DATA_PANEL_REGISTERED = "panel_registered"
 DATA_PANEL_VIEWS_REGISTERED = "panel_views_registered"
 
@@ -49,7 +50,7 @@ DATA_PANEL_VIEWS_REGISTERED = "panel_views_registered"
 def _require_admin(request: web.Request) -> None:
     user = request["hass_user"]
     if not user.is_admin:
-        raise Unauthorized()
+        raise Unauthorized
 
 
 def _json_error(message: str, status: int = 400) -> web.Response:
@@ -64,7 +65,7 @@ def _validate_title(value: Any) -> str:
     if value is None:
         return ""
     if not isinstance(value, str):
-        raise ValueError("Title must be text.")
+        raise ValueError("Title must be text.")  # noqa: TRY004 - ValueError is the HTTP 400 reply
     title = value.strip()
     if len(title) > MAX_TITLE_LENGTH:
         raise ValueError(f"Title must be {MAX_TITLE_LENGTH} characters or fewer.")
@@ -80,7 +81,9 @@ async def async_panel_payload(hass: HomeAssistant) -> dict[str, Any]:
     custom_icon_path = clean_string(values.get(CONF_CUSTOM_ICON_PATH))
 
     catalog = await hass.async_add_executor_job(load_preset_catalog)
-    custom_preview_url = await hass.async_add_executor_job(get_custom_icon_preview_url, hass)
+    custom_preview_url = await hass.async_add_executor_job(
+        get_custom_icon_preview_url, hass
+    )
     custom_active = bool(custom_icon_path and custom_preview_url)
 
     return {
@@ -129,10 +132,12 @@ class FaviconPanelConfigView(HomeAssistantView):
     requires_auth = True
 
     async def get(self, request: web.Request) -> web.Response:
+        """Return the presets and the current selection."""
         hass = request.app["hass"]
         return web.json_response(await async_panel_payload(hass))
 
     async def post(self, request: web.Request) -> web.Response:
+        """Save the favicon selection (admin only)."""
         _require_admin(request)
         hass: HomeAssistant = request.app["hass"]
         config_entry = _config_entry(hass)
@@ -153,7 +158,10 @@ class FaviconPanelConfigView(HomeAssistantView):
 
         source = clean_string(body.get("source")) or "preset"
         if source == "custom":
-            if await hass.async_add_executor_job(get_custom_icon_preview_url, hass) is None:
+            if (
+                await hass.async_add_executor_job(get_custom_icon_preview_url, hass)
+                is None
+            ):
                 return _json_error("Upload a custom icon before selecting it.")
             icon_preset = ""
         elif source == "preset":
@@ -181,11 +189,14 @@ class FaviconPanelUploadView(HomeAssistantView):
     requires_auth = True
 
     async def post(self, request: web.Request) -> web.Response:
+        """Store an uploaded icon (admin only)."""
         _require_admin(request)
         hass: HomeAssistant = request.app["hass"]
         config_entry = _config_entry(hass)
         if config_entry is None:
-            return _json_error("Create the Favicon Changer integration before uploading.")
+            return _json_error(
+                "Create the Favicon Changer integration before uploading."
+            )
 
         if request.content_length and request.content_length > MAX_UPLOAD_BYTES + 4096:
             return _json_error("Icon is larger than 1 MiB.", status=413)
@@ -247,12 +258,13 @@ class CustomIconView(HomeAssistantView):
     requires_auth = False
 
     async def get(self, request: web.Request, filename: str) -> web.FileResponse:
+        """Serve an uploaded icon file."""
         hass: HomeAssistant = request.app["hass"]
         file_path = await hass.async_add_executor_job(
             get_custom_icon_file_path, hass, filename
         )
         if file_path is None:
-            raise web.HTTPNotFound()
+            raise web.HTTPNotFound
         return web.FileResponse(file_path)
 
 

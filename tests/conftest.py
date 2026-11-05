@@ -1,24 +1,26 @@
 """Shared fixtures: load the integration with a real http server but a stubbed frontend."""
 
-import homeassistant.components.frontend as frontend
+from pathlib import Path
+
 import pycares
 import pytest
-from homeassistant.core import HomeAssistant
-from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 # Claim the name before the harness imports its own testing_config/custom_components.
 import custom_components  # noqa: F401
+from homeassistant.components import frontend
+from homeassistant.core import HomeAssistant
+from homeassistant.setup import async_setup_component
 
 # pycares starts a process-wide daemon thread on first use; start it now so the
 # harness's lingering-thread check doesn't blame whichever test runs first.
-pycares._shutdown_manager.start()
+pycares._shutdown_manager.start()  # noqa: SLF001
 
 DOMAIN = "favicon_changer"
 
 
 @pytest.fixture(autouse=True)
-def auto_enable_custom_integrations(enable_custom_integrations):
+def auto_enable_custom_integrations(enable_custom_integrations: None):
     """Let Home Assistant load integrations from custom_components/."""
 
 
@@ -26,7 +28,9 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 def restore_frontend():
     """The integration patches module-level frontend state; undo it after each test."""
     get_template = frontend.IndexView.get_template
-    manifest = {key: frontend.MANIFEST_JSON[key] for key in ("icons", "name", "short_name")}
+    manifest = {
+        key: frontend.MANIFEST_JSON[key] for key in ("icons", "name", "short_name")
+    }
     yield
     setattr(frontend.IndexView, "get_template", get_template)  # noqa: B010
     for key, value in manifest.items():
@@ -34,7 +38,7 @@ def restore_frontend():
 
 
 @pytest.fixture
-async def http(hass: HomeAssistant, tmp_path) -> None:
+async def http(hass: HomeAssistant, tmp_path: Path) -> None:
     """Set up http; mark frontend deps loaded since hass_frontend is not installed."""
     hass.config.config_dir = str(tmp_path)
     assert await async_setup_component(hass, "http", {})

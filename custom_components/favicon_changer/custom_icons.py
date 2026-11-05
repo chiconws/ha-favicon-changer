@@ -1,16 +1,15 @@
 """Helpers for custom uploaded favicon assets."""
 
-from __future__ import annotations
-
-import logging
-import re
-import shutil
 from dataclasses import dataclass
 from io import BytesIO
+import logging
 from pathlib import Path
+import re
+import shutil
+
+from PIL import Image
 
 from homeassistant.core import HomeAssistant
-from PIL import Image
 
 from .const import CUSTOM_ICON_PUBLIC_PATH, CUSTOM_ICON_STORAGE_DIR, MAX_UPLOAD_BYTES
 
@@ -85,7 +84,10 @@ def get_custom_icon_preview_url(hass: HomeAssistant) -> str | None:
         return None
 
     # save_custom_icon writes exactly one sized file per upload, whatever the format.
-    sized = next((entry for entry in slot_dir.iterdir() if _SIZED_ICON_RE.match(entry.name)), None)
+    sized = next(
+        (entry for entry in slot_dir.iterdir() if _SIZED_ICON_RE.match(entry.name)),
+        None,
+    )
     if sized is None:
         return None
     return f"{CUSTOM_ICON_PUBLIC_PATH}{sized.name}?v={sized.stat().st_mtime_ns}"
@@ -96,10 +98,12 @@ def _identify_icon(content: bytes) -> UploadedIcon:
         with Image.open(BytesIO(content), formats=list(_FORMAT_EXTENSIONS)) as image:
             extension = _FORMAT_EXTENSIONS.get(image.format or "")
             if extension is None:
-                raise ValueError(f"unsupported format {image.format}")
+                raise ValueError(f"unsupported format {image.format}")  # noqa: TRY301 - handled with the decode errors below
             if extension != "ico":
                 return UploadedIcon(extension, *image.size)
-            square = [size for size in image.info.get("sizes", ()) if size[0] == size[1]]
+            square = [
+                size for size in image.info.get("sizes", ()) if size[0] == size[1]
+            ]
     except (OSError, SyntaxError, ValueError, Image.DecompressionBombError) as err:
         raise CustomIconError("Upload a PNG, ICO, WebP, GIF, or JPEG icon.") from err
 

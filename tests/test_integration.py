@@ -4,12 +4,18 @@ import io
 from typing import Any
 
 import aiohttp
-import homeassistant.components.frontend as frontend
+from PIL import Image
+from pytest_homeassistant_custom_component.common import (
+    CLIENT_ID,
+    MockConfigEntry,
+    MockUser,
+)
+from pytest_homeassistant_custom_component.typing import ClientSessionGenerator
+
 from homeassistant import config_entries
+from homeassistant.components import frontend
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-from PIL import Image
-from pytest_homeassistant_custom_component.common import CLIENT_ID
 
 DOMAIN = "favicon_changer"
 CONFIG_URL = "/api/ha-favicon-changer/config"
@@ -30,13 +36,20 @@ def _upload_form(content: bytes, filename: str = "icon.png", title: str | None =
     return form
 
 
-async def test_setup_applies_config_and_unload_restores(hass: HomeAssistant, entry):
+async def test_setup_applies_config_and_unload_restores(
+    hass: HomeAssistant, entry: MockConfigEntry
+) -> None:
+    """Test setup applies config and unload restores."""
     original_template = hass.data[DOMAIN]["get_template"]
     assert frontend.MANIFEST_JSON["name"] == "My Home"
-    assert frontend.MANIFEST_JSON["icons"][0]["src"].startswith("/api/ha-favicon-changer/presets/beta/")
+    assert frontend.MANIFEST_JSON["icons"][0]["src"].startswith(
+        "/api/ha-favicon-changer/presets/beta/"
+    )
     assert frontend.IndexView.get_template is not original_template
     panel = hass.data[frontend.DATA_PANELS]["ha-favicon-changer"]
-    assert panel.config and panel.config["_panel_custom"]["module_url"].startswith("/api/ha-favicon-changer/panel.js?v=")
+    assert panel.config and panel.config["_panel_custom"]["module_url"].startswith(
+        "/api/ha-favicon-changer/panel.js?v="
+    )
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     assert frontend.MANIFEST_JSON["name"] == "Home Assistant"
@@ -44,15 +57,21 @@ async def test_setup_applies_config_and_unload_restores(hass: HomeAssistant, ent
     assert "ha-favicon-changer" not in hass.data[frontend.DATA_PANELS]
 
 
-async def test_empty_config_keeps_frontend_defaults(hass: HomeAssistant, entry):
+async def test_empty_config_keeps_frontend_defaults(
+    hass: HomeAssistant, entry: MockConfigEntry
+) -> None:
+    """Test empty config keeps frontend defaults."""
     original_template = hass.data[DOMAIN]["get_template"]
-    hass.config_entries.async_update_entry(entry, options={"title": "", "icon_preset": ""})
+    hass.config_entries.async_update_entry(
+        entry, options={"title": "", "icon_preset": ""}
+    )
     await hass.async_block_till_done()
     assert frontend.IndexView.get_template is original_template
     assert frontend.MANIFEST_JSON["name"] == "Home Assistant"
 
 
-async def test_config_flow_creates_entry(hass: HomeAssistant, http):
+async def test_config_flow_creates_entry(hass: HomeAssistant, http) -> None:
+    """Test config flow creates entry."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
@@ -60,7 +79,10 @@ async def test_config_flow_creates_entry(hass: HomeAssistant, http):
     assert result["data"] == {"title": "", "icon_preset": "", "custom_icon_path": ""}
 
 
-async def test_panel_get_and_switch_preset(hass: HomeAssistant, entry, hass_client):
+async def test_panel_get_and_switch_preset(
+    hass: HomeAssistant, entry: MockConfigEntry, hass_client: ClientSessionGenerator
+) -> None:
+    """Test panel get and switch preset."""
     client = await hass_client()
     payload = await (await client.get(CONFIG_URL)).json()
     assert payload["title"] == "My Home"
@@ -68,15 +90,22 @@ async def test_panel_get_and_switch_preset(hass: HomeAssistant, entry, hass_clie
     assert [p["id"] for p in payload["presets"] if p["active"]] == ["beta"]
     assert ".png" in payload["limits"]["accepted_extensions"]
 
-    response = await client.post(CONFIG_URL, json={"title": "Casa", "source": "preset", "icon_preset": "dev"})
+    response = await client.post(
+        CONFIG_URL, json={"title": "Casa", "source": "preset", "icon_preset": "dev"}
+    )
     assert response.status == 200
     await hass.async_block_till_done()
     assert entry.options["icon_preset"] == "dev"
     assert frontend.MANIFEST_JSON["name"] == "Casa"
-    assert frontend.MANIFEST_JSON["icons"][0]["src"].startswith("/api/ha-favicon-changer/presets/dev/")
+    assert frontend.MANIFEST_JSON["icons"][0]["src"].startswith(
+        "/api/ha-favicon-changer/presets/dev/"
+    )
 
 
-async def test_panel_post_rejects_bad_input(hass: HomeAssistant, entry, hass_client):
+async def test_panel_post_rejects_bad_input(
+    hass: HomeAssistant, entry: MockConfigEntry, hass_client: ClientSessionGenerator
+) -> None:
+    """Test panel post rejects bad input."""
     client = await hass_client()
     cases: list[tuple[dict[str, Any], str]] = [
         ({"data": "not json"}, "Request body must be JSON."),
@@ -84,7 +113,10 @@ async def test_panel_post_rejects_bad_input(hass: HomeAssistant, entry, hass_cli
         ({"json": {"title": 5}}, "Title must be text."),
         ({"json": {"title": "x" * 121}}, "Title must be 120 characters or fewer."),
         ({"json": {"source": "other"}}, "Unknown icon source."),
-        ({"json": {"source": "preset", "icon_preset": "nope"}}, "Choose a valid icon preset."),
+        (
+            {"json": {"source": "preset", "icon_preset": "nope"}},
+            "Choose a valid icon preset.",
+        ),
         ({"json": {"source": "custom"}}, "Upload a custom icon before selecting it."),
     ]
     for kwargs, message in cases:
@@ -93,14 +125,28 @@ async def test_panel_post_rejects_bad_input(hass: HomeAssistant, entry, hass_cli
         assert (await response.json())["error"] == message
 
 
-async def test_panel_requires_admin(hass: HomeAssistant, entry, hass_client, hass_read_only_user):
-    refresh_token = await hass.auth.async_create_refresh_token(hass_read_only_user, CLIENT_ID)
+async def test_panel_requires_admin(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_client: ClientSessionGenerator,
+    hass_read_only_user: MockUser,
+) -> None:
+    """Test panel requires admin."""
+    refresh_token = await hass.auth.async_create_refresh_token(
+        hass_read_only_user, CLIENT_ID
+    )
     client = await hass_client(hass.auth.async_create_access_token(refresh_token))
     assert (await client.post(CONFIG_URL, json={})).status == 401
     assert (await client.post(UPLOAD_URL, data=_upload_form(_png(64)))).status == 401
 
 
-async def test_upload_activates_custom_icon(hass: HomeAssistant, entry, hass_client, hass_client_no_auth):
+async def test_upload_activates_custom_icon(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    hass_client: ClientSessionGenerator,
+    hass_client_no_auth,
+) -> None:
+    """Test upload activates custom icon."""
     client = await hass_client()
     response = await client.post(UPLOAD_URL, data=_upload_form(_png(128), title="Casa"))
     assert response.status == 200
@@ -109,7 +155,9 @@ async def test_upload_activates_custom_icon(hass: HomeAssistant, entry, hass_cli
     assert payload["icon_source"] == "custom"
     assert payload["title"] == "Casa"
     assert entry.options["custom_icon_path"] == "/api/ha-favicon-changer/custom/"
-    assert frontend.MANIFEST_JSON["icons"][0]["src"].startswith("/api/ha-favicon-changer/custom/favicon-128x128.png")
+    assert frontend.MANIFEST_JSON["icons"][0]["src"].startswith(
+        "/api/ha-favicon-changer/custom/favicon-128x128.png"
+    )
 
     # Switching away and back to the stored upload works without re-uploading.
     await client.post(CONFIG_URL, json={"source": "preset", "icon_preset": "beta"})
@@ -118,20 +166,37 @@ async def test_upload_activates_custom_icon(hass: HomeAssistant, entry, hass_cli
 
     public = await hass_client_no_auth()
     assert (await public.get(payload["custom_icon_url"].split("?")[0])).status == 200
-    assert (await public.get("/api/ha-favicon-changer/custom/other/favicon.ico")).status == 404
-    assert (await public.get("/api/ha-favicon-changer/custom/missing.png")).status == 404
-    assert (await public.get("/api/ha-favicon-changer/presets/beta/favicon.ico")).status == 200
-    assert (await public.get("/api/ha-favicon-changer/presets/nope/favicon.ico")).status == 404
-    assert (await public.get("/api/ha-favicon-changer/presets/%2E%2E/preset_catalog.py")).status != 200
+    assert (
+        await public.get("/api/ha-favicon-changer/custom/other/favicon.ico")
+    ).status == 404
+    assert (
+        await public.get("/api/ha-favicon-changer/custom/missing.png")
+    ).status == 404
+    assert (
+        await public.get("/api/ha-favicon-changer/presets/beta/favicon.ico")
+    ).status == 200
+    assert (
+        await public.get("/api/ha-favicon-changer/presets/nope/favicon.ico")
+    ).status == 404
+    assert (
+        await public.get("/api/ha-favicon-changer/presets/%2E%2E/preset_catalog.py")
+    ).status != 200
     assert (await public.get("/api/ha-favicon-changer/panel.js")).status == 200
 
 
-async def test_upload_rejects_bad_files(hass: HomeAssistant, entry, hass_client):
+async def test_upload_rejects_bad_files(
+    hass: HomeAssistant, entry: MockConfigEntry, hass_client: ClientSessionGenerator
+) -> None:
+    """Test upload rejects bad files."""
     client = await hass_client()
     cases = [
         (_upload_form(b"junk"), 400, "Upload a PNG, ICO, WebP, GIF, or JPEG icon."),
         (_upload_form(b"\0" * (1024 * 1024 + 1)), 413, "Icon is larger than 1 MiB."),
-        (aiohttp.FormData({"title": "only a title"}, default_to_multipart=True), 400, "Choose a PNG, ICO, WebP, GIF, or JPEG file to upload."),
+        (
+            aiohttp.FormData({"title": "only a title"}, default_to_multipart=True),
+            400,
+            "Choose a PNG, ICO, WebP, GIF, or JPEG file to upload.",
+        ),
     ]
     for data, status, message in cases:
         response = await client.post(UPLOAD_URL, data=data)
@@ -141,20 +206,31 @@ async def test_upload_rejects_bad_files(hass: HomeAssistant, entry, hass_client)
     bad_bodies = [
         (b"{}", {"Content-Type": "application/json"}),
         (b"{}", {"Content-Type": "multipart/form-data"}),
-        (b"--other\r\n\r\n--other--\r\n", {"Content-Type": "multipart/form-data; boundary=x"}),
+        (
+            b"--other\r\n\r\n--other--\r\n",
+            {"Content-Type": "multipart/form-data; boundary=x"},
+        ),
     ]
     for body, headers in bad_bodies:
         response = await client.post(UPLOAD_URL, data=body, headers=headers)
         assert response.status == 400
-        assert (await response.json())["error"] == "Upload must use multipart form data."
+        assert (await response.json())[
+            "error"
+        ] == "Upload must use multipart form data."
 
 
-async def test_panel_writes_need_a_config_entry(hass: HomeAssistant, entry, hass_client):
+async def test_panel_writes_need_a_config_entry(
+    hass: HomeAssistant, entry: MockConfigEntry, hass_client: ClientSessionGenerator
+) -> None:
+    """Test panel writes need a config entry."""
     assert await hass.config_entries.async_remove(entry.entry_id)
     client = await hass_client()
     assert (await (await client.get(CONFIG_URL)).json())["presets"]
     response = await client.post(CONFIG_URL, json={})
-    assert (await response.json())["error"] == "Create the Favicon Changer integration before saving."
+    assert (await response.json())[
+        "error"
+    ] == "Create the Favicon Changer integration before saving."
     response = await client.post(UPLOAD_URL, data=_upload_form(_png(64)))
-    assert (await response.json())["error"] == "Create the Favicon Changer integration before uploading."
-
+    assert (await response.json())[
+        "error"
+    ] == "Create the Favicon Changer integration before uploading."

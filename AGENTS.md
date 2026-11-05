@@ -29,7 +29,7 @@ All code in `custom_components/favicon_changer/`.
 `.venv/bin/prek install` once per clone; the git hook then runs ruff (lint + format), codespell, yamllint, prettier, zizmor, markdownlint, mypy and Pyright. By hand:
 
 ```bash
-.venv/bin/prek run --all-files
+SKIP=no-commit-to-branch .venv/bin/prek run --all-files --hook-stage manual
 .venv/bin/coverage run -m pytest -q && .venv/bin/coverage report
 ```
 

@@ -37,6 +37,7 @@ Change the browser title, favicon and web app icons of your Home Assistant, from
 
 On Home Assistant 2026.10 or older, install [HACS](https://hacs.xyz/) first, then use:
 [![Open your Home Assistant instance and open this repository in HACS.][badge-my-hacs]][link-my-hacs]
+Then download **Favicon Changer** in HACS and restart Home Assistant.
 
 ### Manual
 

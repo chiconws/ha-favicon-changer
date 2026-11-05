@@ -84,14 +84,7 @@ logger:
 
 ## Development
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and [AGENTS.md](AGENTS.md) for the code structure. Quick checks:
-
-```bash
-uv venv --python 3.14 .venv && uv pip install -r requirements_test.txt
-.venv/bin/prek install
-.venv/bin/prek run --all-files
-.venv/bin/pytest
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks and tests, and [AGENTS.md](AGENTS.md) for the code structure.
 
 ## Credits
 

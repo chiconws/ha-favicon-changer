@@ -1,10 +1,10 @@
 {
-  "title": "Favicon Changer",
   "config": {
     "step": {
       "user": {
         "title": "Favicon Changer"
       }
     }
-  }
+  },
+  "title": "Favicon Changer"
 }

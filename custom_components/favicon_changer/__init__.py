@@ -1,18 +1,18 @@
 """Home Assistant integration to change title and favicons."""
 
-from __future__ import annotations
-
+from collections.abc import Mapping
 import contextlib
 import html
 import json
 import logging
 import mimetypes
-import re
-from collections.abc import Mapping
 from pathlib import Path
+import re
 from typing import Any
 
-import homeassistant.components.frontend as frontend
+import jinja2
+
+from homeassistant.components import frontend
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
@@ -42,10 +42,12 @@ _TEMPLATE_BASE_RENDER_ATTR = "_favicon_changer_base_render"
 
 
 def _ensure_domain_data(hass: HomeAssistant) -> dict[str, Any]:
-    data = hass.data.setdefault(DOMAIN, {})
+    data: dict[str, Any] = hass.data.setdefault(DOMAIN, {})
     if DATA_GET_TEMPLATE not in data:
         data[DATA_GET_TEMPLATE] = frontend.IndexView.get_template
-        data[DATA_MANIFEST] = {key: frontend.MANIFEST_JSON[key] for key in _MANIFEST_KEYS}
+        data[DATA_MANIFEST] = {
+            key: frontend.MANIFEST_JSON[key] for key in _MANIFEST_KEYS
+        }
     return data
 
 
@@ -117,7 +119,9 @@ def find_icons(public_path: str, local_dir: Path) -> dict[str, Any]:
         if icon_match:
             mime_type = mimetypes.guess_type(filename)[0]
             if not mime_type:
-                _LOGGER.debug("Skipping manifest icon with unsupported type: %s", filename)
+                _LOGGER.debug(
+                    "Skipping manifest icon with unsupported type: %s", filename
+                )
                 continue
             manifest.append(
                 {
@@ -150,11 +154,11 @@ def _clear_frontend_template_cache(hass: HomeAssistant) -> None:
     cleared = 0
     for view in hass.http.app.router.resources():
         if isinstance(view, frontend.IndexView):
-            view._template_cache = None
+            view._template_cache = None  # noqa: SLF001 - this integration rewrites the frontend index
             cleared += 1
 
     if hasattr(frontend, "_async_render_index_cached"):
-        frontend._async_render_index_cached.cache_clear()
+        frontend._async_render_index_cached.cache_clear()  # noqa: SLF001 - see above
     _LOGGER.debug("Cleared template cache for %d frontend views", cleared)
 
 
@@ -176,15 +180,15 @@ async def _apply_config(hass: HomeAssistant, config: Mapping[str, Any]) -> None:
         remove_hooks(hass)
         return
 
-    def _get_template(self: frontend.IndexView):
-        template = data[DATA_GET_TEMPLATE](self)
+    def _get_template(self: frontend.IndexView) -> jinja2.Template:
+        template: jinja2.Template = data[DATA_GET_TEMPLATE](self)
         base_render = getattr(template, _TEMPLATE_BASE_RENDER_ATTR, None)
         if base_render is None:
             base_render = template.render
             setattr(template, _TEMPLATE_BASE_RENDER_ATTR, base_render)
 
         def new_render(*args: Any, **kwargs: Any) -> str:
-            text = base_render(*args, **kwargs)
+            text: str = base_render(*args, **kwargs)
             head = ""
             if "favicon" in icons:
                 text = text.replace("/static/icons/favicon.ico", icons["favicon"])
@@ -195,7 +199,9 @@ async def _apply_config(hass: HomeAssistant, config: Mapping[str, Any]) -> None:
                 )
             if "manifest" in icons:
                 first = icons["manifest"][0]
-                head += f'<link rel="icon" type="{first["type"]}" href="{first["src"]}">'
+                head += (
+                    f'<link rel="icon" type="{first["type"]}" href="{first["src"]}">'
+                )
             if title:
                 script_title = json.dumps(title).replace("<", "\\u003c")
                 text = text.replace(
@@ -203,7 +209,7 @@ async def _apply_config(hass: HomeAssistant, config: Mapping[str, Any]) -> None:
                     f"<title>{html.escape(title)}</title>",
                 )
                 head += (
-                    "<script type=\"module\">"
+                    '<script type="module">'
                     f"const customTitle = {script_title};"
                     "const rewriteTitle = () => {"
                     "if (document.title.includes('Home Assistant')) {"
@@ -218,7 +224,7 @@ async def _apply_config(hass: HomeAssistant, config: Mapping[str, Any]) -> None:
                 )
             return text.replace("</head>", f"{head}</head>")
 
-        template.render = new_render
+        template.render = new_render  # type: ignore[method-assign]  # patching the render is the feature
         return template
 
     setattr(frontend.IndexView, "get_template", _get_template)  # noqa: B010 - patching is the feature

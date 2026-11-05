@@ -40,7 +40,8 @@ class HaFaviconChangerPanel extends HTMLElement {
       this._data = await this._hass.callApi("GET", "ha-favicon-changer/config");
       this._draftTitle = this._data.title || "";
       this._selectedSource = this._data.icon_source || "preset";
-      this._selectedPreset = this._data.icon_preset || this._data.presets?.[0]?.id || "";
+      this._selectedPreset =
+        this._data.icon_preset || this._data.presets?.[0]?.id || "";
     } catch (err) {
       this._error = this._messageFromError(err);
     } finally {
@@ -50,7 +51,12 @@ class HaFaviconChangerPanel extends HTMLElement {
   }
 
   _messageFromError(err) {
-    return err?.body?.error || err?.message || (typeof err === "string" && err) || "Unexpected error.";
+    return (
+      err?.body?.error ||
+      err?.message ||
+      (typeof err === "string" && err) ||
+      "Unexpected error."
+    );
   }
 
   _escape(value) {
@@ -74,7 +80,9 @@ class HaFaviconChangerPanel extends HTMLElement {
   }
 
   _selectedPresetData() {
-    return (this._data?.presets || []).find((preset) => preset.id === this._selectedPreset);
+    return (this._data?.presets || []).find(
+      (preset) => preset.id === this._selectedPreset,
+    );
   }
 
   _previewUrl() {
@@ -180,10 +188,13 @@ class HaFaviconChangerPanel extends HTMLElement {
     formData.append("file", this._uploadFile, this._uploadFile.name);
 
     try {
-      const response = await this._hass.fetchWithAuth("/api/ha-favicon-changer/upload", {
-        method: "POST",
-        body: formData,
-      });
+      const response = await this._hass.fetchWithAuth(
+        "/api/ha-favicon-changer/upload",
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
       const body = await response.json();
       if (!response.ok) {
         throw new Error(body.error || "Upload failed.");
@@ -222,10 +233,10 @@ class HaFaviconChangerPanel extends HTMLElement {
     const presets = this._data.presets || [];
     const previewUrl = this._previewUrl();
     const previewTitle = this._previewTitle();
-    const canApplyPreset =
-      this._selectedSource !== "upload" && !this._saving;
+    const canApplyPreset = this._selectedSource !== "upload" && !this._saving;
     const canUpload = this._uploadFile && !this._saving;
-    const { accepted_extensions: extensions, accepted_types: types } = this._data.limits;
+    const { accepted_extensions: extensions, accepted_types: types } =
+      this._data.limits;
     const uploadAccept = [...extensions, ...types].join(",");
 
     this.shadowRoot.innerHTML = `
@@ -248,7 +259,7 @@ class HaFaviconChangerPanel extends HTMLElement {
           <label class="field">
             <span>Page title</span>
             <input id="title" type="text" maxlength="120" value="${this._escape(
-              this._draftTitle
+              this._draftTitle,
             )}">
           </label>
           <label class="file-field">
@@ -273,21 +284,22 @@ class HaFaviconChangerPanel extends HTMLElement {
                   }" data-source="custom" type="button" role="listitem">
                     <img src="${this._escape(this._data.custom_icon_url)}" alt="">
                     <span>Custom upload</span>
-                    ${this._data.icon_source === "custom" ? '<b>Active</b>' : ""}
+                    ${this._data.icon_source === "custom" ? "<b>Active</b>" : ""}
                   </button>`
                 : ""
             }
             ${presets
               .map(
                 (preset) => `<button class="preset ${
-                  this._selectedSource === "preset" && this._selectedPreset === preset.id
+                  this._selectedSource === "preset" &&
+                  this._selectedPreset === preset.id
                     ? "selected"
                     : ""
                 }" data-preset="${this._escape(preset.id)}" type="button" role="listitem">
                   <img src="${this._escape(preset.preview_url)}" alt="">
                   <span>${this._escape(preset.name)}</span>
                   ${preset.active ? "<b>Active</b>" : ""}
-                </button>`
+                </button>`,
               )
               .join("")}
           </div>
@@ -312,18 +324,26 @@ class HaFaviconChangerPanel extends HTMLElement {
     this.shadowRoot.querySelector("#title")?.addEventListener("input", () => {
       this._captureTitle();
     });
-    this.shadowRoot.querySelector("#upload")?.addEventListener("change", (event) => {
-      this._handleFileSelected(event);
-    });
-    this.shadowRoot.querySelector("#upload-apply")?.addEventListener("click", () => {
-      this._uploadAndApply();
-    });
+    this.shadowRoot
+      .querySelector("#upload")
+      ?.addEventListener("change", (event) => {
+        this._handleFileSelected(event);
+      });
+    this.shadowRoot
+      .querySelector("#upload-apply")
+      ?.addEventListener("click", () => {
+        this._uploadAndApply();
+      });
     this.shadowRoot.querySelectorAll("[data-preset]").forEach((button) => {
-      button.addEventListener("click", () => this._selectPreset(button.dataset.preset));
+      button.addEventListener("click", () =>
+        this._selectPreset(button.dataset.preset),
+      );
     });
-    this.shadowRoot.querySelector("[data-source='custom']")?.addEventListener("click", () => {
-      this._selectCustom();
-    });
+    this.shadowRoot
+      .querySelector("[data-source='custom']")
+      ?.addEventListener("click", () => {
+        this._selectCustom();
+      });
   }
 
   _styles() {

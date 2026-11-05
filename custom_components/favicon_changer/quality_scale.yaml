@@ -1,4 +1,4 @@
-# Target: Silver (ha-standards). The integration has no entities or devices; it patches the frontend.
+# Target: Silver. The integration has no entities or devices; it patches the frontend.
 rules:
   # Bronze
   action-setup:

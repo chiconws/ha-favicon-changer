@@ -1,15 +1,9 @@
 {
   "domain": "favicon_changer",
   "name": "Favicon Changer",
-  "codeowners": [
-    "@chiconws"
-  ],
+  "codeowners": ["@chiconws"],
   "config_flow": true,
-  "dependencies": [
-    "frontend",
-    "http",
-    "panel_custom"
-  ],
+  "dependencies": ["frontend", "http", "panel_custom"],
   "documentation": "https://github.com/chiconws/ha-favicon-changer",
   "integration_type": "service",
   "iot_class": "calculated",

@@ -1,8 +1,6 @@
 """Config flow for favicon integration."""
 
-from __future__ import annotations
-
-from typing import Any
+from typing import Any, override
 
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
@@ -21,6 +19,7 @@ class FaviconConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    @override
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:

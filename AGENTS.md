@@ -1,7 +1,5 @@
 # Agent Notes: Favicon Changer
 
-Standard: ha-standards v0.5.2
-
 Language: README in **English**; code, logs and `strings.json` in English; translations en + pt-BR.
 
 ## Overview
@@ -28,14 +26,14 @@ All code in `custom_components/favicon_changer/`.
 
 ## Local validation (before push)
 
-The pre-commit hook (`.githooks/pre-commit`) runs ruff, mypy, Pyright and pytest. By hand:
+`.venv/bin/prek install` once per clone; the git hook then runs ruff (lint + format), codespell, yamllint, prettier, zizmor, markdownlint, mypy and Pyright. By hand:
 
 ```bash
-python -m ruff check custom_components/favicon_changer tests
-python -m coverage run -m pytest -q && python -m coverage report
+.venv/bin/prek run --all-files
+.venv/bin/coverage run -m pytest -q && .venv/bin/coverage report
 ```
 
-Deploy to ha-test: VS Code tasks in `.vscode/`.
+Contributor setup: `CONTRIBUTING.md`.
 
 ## Deviations from standard
 

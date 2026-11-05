@@ -1,7 +1,5 @@
 """Helpers for shipped favicon presets."""
 
-from __future__ import annotations
-
 import logging
 from pathlib import Path
 from typing import TypedDict
@@ -28,11 +26,14 @@ class PresetInfo(TypedDict):
 
 
 def _display_name_from_id(preset_id: str) -> str:
-    return " ".join(
-        "POC" if word.upper() == "POC" else word.capitalize()
-        for word in preset_id.split("-")
-        if word
-    ) or preset_id
+    return (
+        " ".join(
+            "POC" if word.upper() == "POC" else word.capitalize()
+            for word in preset_id.split("-")
+            if word
+        )
+        or preset_id
+    )
 
 
 def load_preset_catalog() -> tuple[PresetInfo, ...]:
@@ -61,4 +62,3 @@ def load_preset_catalog() -> tuple[PresetInfo, ...]:
 
     catalog.sort(key=lambda item: item["name"].lower())
     return tuple(catalog)
-

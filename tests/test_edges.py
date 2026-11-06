@@ -143,3 +143,43 @@ async def test_diagnostics(hass: HomeAssistant, entry: MockConfigEntry) -> None:
     )
     diag = await diagnostics.async_get_config_entry_diagnostics(hass, entry)
     assert diag["config"]["title"] == "My Home" and diag["custom_icon"] is None
+
+
+async def test_diagnostics_reports_custom_icon_only_when_active(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A leftover upload is not reported while a preset is active."""
+    diagnostics = importlib.import_module(
+        "custom_components.favicon_changer.diagnostics"
+    )
+    monkeypatch.setattr(
+        diagnostics, "get_custom_icon_preview_url", lambda hass: "/icon.png"
+    )
+    preset = MockConfigEntry(domain="favicon_changer", data={"custom_icon_path": ""})
+    custom = MockConfigEntry(
+        domain="favicon_changer", data={"custom_icon_path": "/custom/"}
+    )
+    assert (await diagnostics.async_get_config_entry_diagnostics(hass, preset))[
+        "custom_icon"
+    ] is None
+    assert (await diagnostics.async_get_config_entry_diagnostics(hass, custom))[
+        "custom_icon"
+    ] == "/icon.png"
+
+
+async def test_panel_views_retry_after_failed_registration(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failed route registration does not mark the views as registered."""
+    panel = importlib.import_module("custom_components.favicon_changer.panel")
+    calls: list[object] = []
+
+    async def fail(paths: object) -> None:
+        calls.append(paths)
+        raise OSError("asset missing")
+
+    monkeypatch.setattr(hass, "http", SimpleNamespace(async_register_static_paths=fail))
+    for _ in range(2):
+        with pytest.raises(OSError):
+            await panel._register_panel_views(hass)  # noqa: SLF001
+    assert len(calls) == 2

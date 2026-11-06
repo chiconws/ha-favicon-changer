@@ -46,6 +46,16 @@ Then download **Favicon Changer** in HACS and restart Home Assistant.
    Home Assistant configuration.
 3. Restart Home Assistant.
 
+### Upgrading from 3.x or older
+
+Version 4.0 renamed the integration domain to `favicon_changer` (3.x used
+`ha_favicon_changer`, 2.x `ha-favicon-changer`). Home Assistant cannot move an entry
+across domains, so:
+
+1. Delete the old **Favicon Changer** entry in **Settings → Devices & services**.
+2. Delete the old `custom_components/ha_favicon_changer` (or `ha-favicon-changer`) folder.
+3. Install the current version, restart Home Assistant and add the integration again.
+
 ## Configuration
 
 [![Open your Home Assistant instance and start setting up Favicon Changer.][badge-my-config]][link-my-config]

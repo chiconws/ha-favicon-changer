@@ -273,8 +273,6 @@ async def _register_panel_views(hass: HomeAssistant) -> None:
     if data.get(DATA_PANEL_VIEWS_REGISTERED):
         return
 
-    # Routes outlive the entry: aiohttp cannot unregister them, hence the flag.
-    data[DATA_PANEL_VIEWS_REGISTERED] = True
     await hass.http.async_register_static_paths(
         [
             StaticPathConfig(PANEL_MODULE_URL, str(PANEL_MODULE_PATH), False),
@@ -284,6 +282,9 @@ async def _register_panel_views(hass: HomeAssistant) -> None:
     hass.http.register_view(FaviconPanelConfigView())
     hass.http.register_view(FaviconPanelUploadView())
     hass.http.register_view(CustomIconView())
+    # Routes outlive the entry: aiohttp cannot unregister them, hence the flag.
+    # Set it last so a failed registration is retried on the next setup.
+    data[DATA_PANEL_VIEWS_REGISTERED] = True
 
 
 async def async_register_favicon_panel(hass: HomeAssistant) -> None:

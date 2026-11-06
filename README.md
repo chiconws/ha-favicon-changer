@@ -83,6 +83,13 @@ logger:
 - The integration patches Home Assistant's frontend at runtime, so a frontend change in a new HA release can break it until it is updated.
 - Upgrading from 2.0.x: the folder is now `custom_components/favicon_changer/`. Delete the old `ha-favicon-changer` folder, restart, delete the old entry and add Favicon Changer again; an uploaded icon is kept.
 
+## Removal
+
+1. Go to **Settings → Devices & services → Favicon Changer**, open ⋮ and select **Delete**.
+2. Remove it in **Settings → Marketplace** (or HACS), or delete
+   `custom_components/favicon_changer` if you installed it manually.
+3. Restart Home Assistant.
+
 ## Development
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks and tests, and [AGENTS.md](AGENTS.md) for the code structure.
